@@ -1,14 +1,14 @@
 {
-  "name": "DPPIQ — Digital Product Passport Intelligence",
-  "short_name": "DPPIQ",
-  "description": "Scan a product to discover its Digital Product Passport and regulatory status.",
+  "name": "REGIQ — Regulation Intelligence",
+  "short_name": "REGIQ",
+  "description": "Scan a product to understand the regulations, standards and passport obligations that may apply.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#071312",
   "theme_color": "#071312",
   "icons": [
     {
-      "src": "/dppiq-icon.svg",
+      "src": "/regiq-icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
