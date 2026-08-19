@@ -37,7 +37,7 @@ test.describe('REGIQ release smoke', () => {
   test('navigation works without layout overflow', async ({ page }) => {
     const menu = page.locator('.os-mobile-menu')
     if (await menu.isVisible()) await menu.click()
-    await page.getByRole('button', { name: /intelligence/i }).click()
+    await page.getByRole('button', { name: 'Intelligence', exact: true }).click()
     await expect(page.getByRole('heading', { name: /no dossier yet/i })).toBeVisible()
     await expect(page.getByText(/regiq intelligence/i)).toBeVisible()
     await assertNoHorizontalOverflow(page)
