@@ -40,9 +40,9 @@ uploadStyle.textContent = `
 
   .os-logo {
     color: transparent !important;
-    background:
-      url('/regiq-icon.svg?v=2') center / cover no-repeat !important;
-    box-shadow: 0 7px 18px rgba(24, 32, 52, .14) !important;
+    background: url('/regiq-icon.svg?v=6') center / cover no-repeat !important;
+    border-radius: 10px !important;
+    box-shadow: 0 7px 18px rgba(0, 19, 30, .24) !important;
   }
 `
 document.head.appendChild(uploadStyle)
