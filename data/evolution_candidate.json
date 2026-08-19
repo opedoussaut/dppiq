@@ -1,0 +1,13 @@
+{
+  "candidate": "regulatory-agent-g2",
+  "baseline": {
+    "requirement_mapping_accuracy": 0.84,
+    "evidence_precision": 0.89,
+    "false_compliance_rate": 0.074
+  },
+  "proposal": {
+    "requirement_mapping_accuracy": 0.918,
+    "evidence_precision": 0.962,
+    "false_compliance_rate": 0.028
+  }
+}
