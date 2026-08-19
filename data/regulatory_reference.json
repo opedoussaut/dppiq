@@ -5,7 +5,7 @@
   "status": "in_force",
   "legal_basis": "Regulation (EU) 2024/1781",
   "official_journal_date": "2024-06-28",
-  "last_verified_by_dppiq": "2026-08-19",
+  "last_verified_by_regiq": "2026-08-19",
   "authoritative_source": {
     "publisher": "EUR-Lex",
     "url": "https://eur-lex.europa.eu/eli/reg/2024/1781/oj",
@@ -22,7 +22,7 @@
     "publisher": "European Commission — DG GROW",
     "url": "https://single-market-economy.ec.europa.eu/news/digital-product-passport-registry-now-live-2026-07-20_en"
   },
-  "scope_note": "ESPR establishes the horizontal DPP framework. Product-specific DPP content, data carrier details, granularity and access rights are specified through applicable delegated acts or other Union legislation. DPPIQ does not infer a product-specific legal obligation where no applicable act has been identified.",
+  "scope_note": "ESPR establishes the horizontal DPP framework. Product-specific DPP content, data carrier details, granularity and access rights are specified through applicable delegated acts or other Union legislation. REGIQ does not infer a product-specific legal obligation where no applicable act has been identified.",
   "provisions": [
     {
       "id": "ESPR-A9-ACCURATE-UPTODATE",
@@ -88,30 +88,30 @@
       "field": "dpp.access_control_declared"
     }
   ],
-  "dppiq_extensions": [
+  "regiq_extensions": [
     {
-      "id": "DPPIQ-IQ-SCORE",
-      "classification": "DPPIQ_INTELLIGENCE",
-      "title": "DPP IQ score",
-      "description": "Composite DPPIQ quality/readiness indicator. Not an EU regulatory score."
+      "id": "REGIQ-IQ-SCORE",
+      "classification": "REGIQ_INTELLIGENCE",
+      "title": "REGIQ intelligence score",
+      "description": "Composite REGIQ quality/readiness indicator. Not an EU regulatory score."
     },
     {
-      "id": "DPPIQ-EVIDENCE-QUALITY",
-      "classification": "DPPIQ_INTELLIGENCE",
+      "id": "REGIQ-EVIDENCE-QUALITY",
+      "classification": "REGIQ_INTELLIGENCE",
       "title": "Evidence quality score",
-      "description": "DPPIQ assessment of evidence coverage and provenance."
+      "description": "REGIQ assessment of evidence coverage and provenance."
     },
     {
-      "id": "DPPIQ-CIRCULARITY",
-      "classification": "DPPIQ_INTELLIGENCE",
+      "id": "REGIQ-CIRCULARITY",
+      "classification": "REGIQ_INTELLIGENCE",
       "title": "Circularity readiness",
-      "description": "DPPIQ analysis based on product data; not a legal compliance conclusion."
+      "description": "REGIQ analysis based on product data; not a legal compliance conclusion."
     },
     {
-      "id": "DPPIQ-EVOLUTION",
-      "classification": "DPPIQ_INTELLIGENCE",
+      "id": "REGIQ-EVOLUTION",
+      "classification": "REGIQ_INTELLIGENCE",
       "title": "Agent evolution engine",
-      "description": "Benchmark-gated improvement of DPPIQ agent workflows."
+      "description": "Benchmark-gated improvement of REGIQ agent workflows."
     }
   ]
 }
