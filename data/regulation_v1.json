@@ -1,0 +1,8 @@
+{
+  "version": "2026-demo-1",
+  "status": "illustrative",
+  "requirements": [
+    {"id": "IDENTITY", "title": "Unique product identity", "field": "identity.product_id"},
+    {"id": "MATERIALS", "title": "Material composition", "field": "materials"}
+  ]
+}
