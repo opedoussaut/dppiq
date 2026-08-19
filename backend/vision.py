@@ -4,6 +4,7 @@ import base64
 import json
 import os
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 
@@ -14,7 +15,11 @@ VISION_MODEL = os.getenv("REGIQ_VISION_MODEL", os.getenv("DPPIQ_VISION_MODEL", "
 HF_MODEL = os.getenv("REGIQ_HF_MODEL", os.getenv("DPPIQ_HF_MODEL", "auto"))
 HF_TOKEN = os.getenv("HF_TOKEN", "")
 HF_ROUTER = "https://router.huggingface.co/v1"
+HF_API = "https://huggingface.co/api/models"
 VISION_ENABLED = os.getenv("REGIQ_VISION_ENABLED", os.getenv("DPPIQ_VISION_ENABLED", "false")).lower() in {"1", "true", "yes", "on"}
+ALLOW_BYO_HF_TOKEN = os.getenv("REGIQ_ALLOW_BYO_HF_TOKEN", "false").lower() in {"1", "true", "yes", "on"}
+MODEL_LICENSE_OVERRIDE = os.getenv("REGIQ_MODEL_LICENSE", "").strip()
+MODEL_SOURCE_OVERRIDE = os.getenv("REGIQ_MODEL_SOURCE_URL", "").strip()
 
 VISION_PROMPT = """You are the product-identification component of REGIQ, an open-source product regulation intelligence system.
 Identify the primary physical product in this image. Return ONLY valid JSON with these keys:
@@ -40,11 +45,33 @@ def vision_configuration() -> dict[str, Any]:
         "base_url": HF_ROUTER if VISION_PROVIDER == "huggingface" else OLLAMA_BASE_URL,
         "open_weight": True,
         "auto_model_selection": VISION_PROVIDER == "huggingface" and HF_MODEL == "auto",
+        "server_token_configured": bool(HF_TOKEN) if VISION_PROVIDER == "huggingface" else False,
+        "byo_hf_token_enabled": ALLOW_BYO_HF_TOKEN if VISION_PROVIDER == "huggingface" else False,
     }
 
 
-async def _discover_hf_vision_model(client: httpx.AsyncClient) -> tuple[str | None, dict[str, Any]]:
-    headers = {"Authorization": f"Bearer {HF_TOKEN}"} if HF_TOKEN else {}
+def _extract_json(raw: str) -> dict[str, Any] | None:
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        start = raw.find("{")
+        end = raw.rfind("}")
+        if start >= 0 and end > start:
+            try:
+                return json.loads(raw[start:end + 1])
+            except json.JSONDecodeError:
+                return None
+        return None
+
+
+def _effective_hf_token(token_override: str | None) -> str:
+    if token_override and ALLOW_BYO_HF_TOKEN:
+        return token_override.strip()
+    return HF_TOKEN
+
+
+async def _discover_hf_vision_model(client: httpx.AsyncClient, token: str) -> tuple[str | None, dict[str, Any]]:
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
     response = await client.get(f"{HF_ROUTER}/models", headers=headers)
     response.raise_for_status()
     payload = response.json()
@@ -77,26 +104,38 @@ async def _discover_hf_vision_model(client: httpx.AsyncClient) -> tuple[str | No
     }
 
 
-def _extract_json(raw: str) -> dict[str, Any] | None:
+async def _hf_model_provenance(client: httpx.AsyncClient, model: str, token: str) -> dict[str, Any]:
+    provenance: dict[str, Any] = {
+        "provider": "huggingface",
+        "model": model,
+        "source_url": MODEL_SOURCE_OVERRIDE or f"https://huggingface.co/{model}",
+        "license": MODEL_LICENSE_OVERRIDE or None,
+        "revision": None,
+        "license_source": "deployment_override" if MODEL_LICENSE_OVERRIDE else "model_card_best_effort",
+    }
     try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
-        start = raw.find("{")
-        end = raw.rfind("}")
-        if start >= 0 and end > start:
-            try:
-                return json.loads(raw[start:end + 1])
-            except json.JSONDecodeError:
-                return None
-        return None
+        headers = {"Authorization": f"Bearer {token}"} if token else {}
+        response = await client.get(f"{HF_API}/{quote(model, safe='/')}", headers=headers)
+        if response.status_code < 400:
+            metadata = response.json()
+            card_data = metadata.get("cardData") or {}
+            provenance["revision"] = metadata.get("sha")
+            if not provenance["license"]:
+                provenance["license"] = card_data.get("license") or metadata.get("license")
+            provenance["pipeline_tag"] = metadata.get("pipeline_tag")
+    except Exception:
+        pass
+    provenance["license"] = provenance["license"] or "unknown"
+    return provenance
 
 
-async def _identify_with_huggingface(image_bytes: bytes) -> dict[str, Any]:
-    if not HF_TOKEN:
+async def _identify_with_huggingface(image_bytes: bytes, token_override: str | None = None) -> dict[str, Any]:
+    token = _effective_hf_token(token_override)
+    if not token:
         return {
             "status": "vision_not_configured",
             "configuration": vision_configuration(),
-            "message": "HF_TOKEN is missing. Set a Hugging Face token with Inference Providers permission.",
+            "message": "No Hugging Face token is available. Configure HF_TOKEN or use the optional BYO token flow if enabled.",
         }
 
     image_b64 = base64.b64encode(image_bytes).decode("ascii")
@@ -107,7 +146,7 @@ async def _identify_with_huggingface(image_bytes: bytes) -> dict[str, Any]:
             discovery: dict[str, Any] = {}
             model = HF_MODEL
             if model == "auto":
-                model, discovery = await _discover_hf_vision_model(client)
+                model, discovery = await _discover_hf_vision_model(client, token)
                 if not model:
                     return {
                         "status": "vision_provider_unreachable",
@@ -118,21 +157,19 @@ async def _identify_with_huggingface(image_bytes: bytes) -> dict[str, Any]:
 
             payload = {
                 "model": model,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": VISION_PROMPT},
-                            {"type": "image_url", "image_url": {"url": image_url}},
-                        ],
-                    }
-                ],
+                "messages": [{
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": VISION_PROMPT},
+                        {"type": "image_url", "image_url": {"url": image_url}},
+                    ],
+                }],
                 "temperature": 0,
                 "max_tokens": 500,
             }
             response = await client.post(
                 f"{HF_ROUTER}/chat/completions",
-                headers={"Authorization": f"Bearer {HF_TOKEN}", "Content-Type": "application/json"},
+                headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
                 json=payload,
             )
             if response.status_code >= 400:
@@ -144,6 +181,7 @@ async def _identify_with_huggingface(image_bytes: bytes) -> dict[str, Any]:
                     "discovery": discovery,
                 }
             body = response.json()
+            provenance = await _hf_model_provenance(client, model, token)
     except Exception as exc:
         return {
             "status": "vision_provider_unreachable",
@@ -160,12 +198,15 @@ async def _identify_with_huggingface(image_bytes: bytes) -> dict[str, Any]:
             "message": "The Hugging Face vision model did not return parseable JSON.",
             "raw": raw[:2000],
             "model_used": model,
+            "model_provenance": provenance,
         }
 
     result["status"] = "identified"
     result["provider"] = "huggingface"
     result["model_used"] = model
+    result["model_provenance"] = provenance
     result["discovery"] = discovery
+    result["credential_source"] = "request_byo" if token_override and ALLOW_BYO_HF_TOKEN else "server_environment"
     return result
 
 
@@ -203,10 +244,19 @@ async def _identify_with_ollama(image_bytes: bytes) -> dict[str, Any]:
     result["status"] = "identified"
     result["provider"] = "ollama"
     result["model_used"] = VISION_MODEL
+    result["model_provenance"] = {
+        "provider": "ollama",
+        "model": VISION_MODEL,
+        "source_url": MODEL_SOURCE_OVERRIDE or None,
+        "license": MODEL_LICENSE_OVERRIDE or "unknown",
+        "revision": None,
+        "license_source": "deployment_override" if MODEL_LICENSE_OVERRIDE else "not_resolved",
+    }
+    result["credential_source"] = "local"
     return result
 
 
-async def identify_product(image_bytes: bytes) -> dict[str, Any]:
+async def identify_product(image_bytes: bytes, hf_token_override: str | None = None) -> dict[str, Any]:
     if not VISION_ENABLED:
         return {
             "status": "vision_not_configured",
@@ -215,7 +265,7 @@ async def identify_product(image_bytes: bytes) -> dict[str, Any]:
         }
 
     if VISION_PROVIDER == "huggingface":
-        return await _identify_with_huggingface(image_bytes)
+        return await _identify_with_huggingface(image_bytes, hf_token_override)
     if VISION_PROVIDER == "ollama":
         return await _identify_with_ollama(image_bytes)
 
@@ -223,38 +273,4 @@ async def identify_product(image_bytes: bytes) -> dict[str, Any]:
         "status": "vision_not_configured",
         "configuration": vision_configuration(),
         "message": f"Unknown vision provider: {VISION_PROVIDER}",
-    }
-
-
-def regulatory_status_for_category(category: str | None) -> dict[str, Any]:
-    if not category:
-        return {
-            "status": "not_assessed",
-            "label": "Regulatory status not assessed",
-            "legal_basis": None,
-            "effective_date": None,
-            "source_url": None,
-            "scope_note": "REGIQ must identify the product category before assessing potentially applicable regulatory regimes.",
-            "classification": "NOT_ASSESSED",
-        }
-
-    if category in {"battery_ev", "battery_lmt", "battery_industrial_gt_2kwh"}:
-        return {
-            "status": "mandatory_from_future_date",
-            "label": "Battery passport required from 18 February 2027",
-            "legal_basis": "Regulation (EU) 2023/1542, Article 77",
-            "effective_date": "2027-02-18",
-            "source_url": "https://eur-lex.europa.eu/eli/reg/2023/1542/oj",
-            "scope_note": "Applies to LMT batteries, electric vehicle batteries and industrial batteries with capacity above 2 kWh.",
-            "classification": "EU_REQUIRED",
-        }
-
-    return {
-        "status": "no_product_specific_rule_identified",
-        "label": "No product-specific DPP obligation identified in the current REGIQ knowledge base",
-        "legal_basis": "Regulation (EU) 2024/1781 establishes the DPP framework; product-specific obligations require applicable product rules.",
-        "effective_date": None,
-        "source_url": "https://eur-lex.europa.eu/eli/reg/2024/1781/oj",
-        "scope_note": "This is not a claim that no regulation applies. REGIQ's current knowledge base is still narrow and must be expanded across additional regulatory regimes.",
-        "classification": "EU_FRAMEWORK",
     }
