@@ -1,6 +1,6 @@
-# DPPIQ agent instructions
+# REGIQ agent instructions
 
-DPPIQ is an open-source, auditable Digital Product Passport intelligence platform. Changes must preserve these rules.
+REGIQ is an open-source, auditable product-regulation intelligence platform. Digital Product Passports are one supported regulatory domain, not the boundary of the product. Changes must preserve these rules.
 
 ## Non-negotiable principles
 
@@ -12,10 +12,12 @@ DPPIQ is an open-source, auditable Digital Product Passport intelligence platfor
 6. Keep runtime model providers replaceable; core domain logic must not depend on one vendor.
 7. Public/open data is the default. Proprietary integrations are optional adapters, not core dependencies.
 8. Any code-modifying self-improvement must be proposed through a reviewable change, not silently applied at runtime.
+9. Product identification and regulatory applicability must remain separate stages.
+10. Never turn absence of an identified rule into a claim that no regulation applies.
 
 ## Evolution workflow
 
-A candidate strategy must be evaluated against versioned benchmark cases. Promotion requires improvement on target metrics without breaching guardrails such as false-compliance rate. Record candidate, baseline, result, decision and rationale.
+A candidate strategy must be evaluated against versioned benchmark cases. Promotion requires improvement on target metrics without breaching guardrails such as false-compliance or false-applicability rates. Record candidate, baseline, result, decision and rationale.
 
 ## Regulatory workflow
 
