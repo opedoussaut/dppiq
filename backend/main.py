@@ -7,12 +7,13 @@ from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from .engine import compare_regulation_versions, evaluate_candidate_generation, evaluate_passport
-from .vision import identify_product, regulatory_status_for_category, vision_configuration
+from .regulatory import regulatory_profile_for_product
+from .vision import identify_product, vision_configuration
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
 
-app = FastAPI(title="REGIQ API", version="0.5.0")
+app = FastAPI(title="REGIQ API", version="0.6.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -28,7 +29,7 @@ def load_json(path: Path):
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "name": "REGIQ", "version": "0.5.0"}
+    return {"status": "ok", "name": "REGIQ", "version": "0.6.0"}
 
 
 @app.get("/api/passport")
@@ -68,7 +69,7 @@ def scan_config():
         "vision": vision_configuration(),
         "camera_capture": True,
         "barcode_qr": True,
-        "principle": "Vision identifies the product; the regulatory engine determines applicable legal and standards context.",
+        "principle": "REGIQ identifies the product first, then maps multiple potentially applicable regulatory regimes. DPP is only one possible regime.",
     }
 
 
@@ -77,21 +78,23 @@ async def scan_image(file: UploadFile = File(...)):
     image_bytes = await file.read()
     content_type = file.content_type or "image/jpeg"
     identification = await identify_product(image_bytes)
-
-    category = identification.get("category") if identification.get("status") == "identified" else None
-    regulatory = regulatory_status_for_category(category)
+    regulatory_profile = regulatory_profile_for_product(identification)
 
     return {
         "filename": file.filename,
         "content_type": content_type,
         "identification": identification,
-        "regulatory": regulatory,
-        "public_dpp": {
-            "status": "not_searched_yet" if category else "waiting_for_identification",
-            "message": (
-                "Digital Product Passport discovery remains one REGIQ module; no passport URL is invented when none has been verified."
-                if category
-                else "REGIQ waits for product identification before searching for applicable regulatory evidence or passports."
-            ),
+        "regulatory_profile": regulatory_profile,
+        "regulatory": {
+            "status": regulatory_profile.get("status"),
+            "label": regulatory_profile.get("headline"),
+            "scope_note": regulatory_profile.get("summary"),
+            "classification": "MULTI_REGIME_PROFILE",
+            "legal_basis": None,
+            "source_url": None,
+        },
+        "discovery": {
+            "status": "ready_for_source_discovery" if regulatory_profile.get("regimes") else "waiting_for_identification",
+            "message": "REGIQ maps authoritative regulatory sources first. Digital Product Passport discovery is performed only where the applicable regime calls for it.",
         },
     }
