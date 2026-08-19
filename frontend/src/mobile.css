@@ -1,27 +1,37 @@
-/* REGIQ mobile experience: viewport-aware sizing instead of fixed desktop-derived dimensions. */
+/* REGIQ mobile experience: same desktop visual language, responsive geometry only. */
 @media (max-width: 700px) {
+  /* Preserve the exact desktop canvas on phones, including browser/safe-area regions. */
   html, body, #root, .os-app {
     overflow-x: hidden;
+    min-height: 100%;
+    background-color: #f5f5f7 !important;
+    color: #1d1d1f;
+  }
+
+  html, body {
     background:
       radial-gradient(circle at 15% -10%, rgba(85, 163, 255, 0.18), transparent 28rem),
       radial-gradient(circle at 85% 5%, rgba(164, 122, 255, 0.11), transparent 24rem),
       #f5f5f7 !important;
-    color: #1d1d1f;
+    background-attachment: fixed !important;
   }
 
-  html, body, #root, .os-app { min-height: 100%; }
+  #root, .os-app { background: transparent !important; }
   body { min-height: 100dvh; }
 
   .os-page {
     width: calc(100% - 20px);
     padding-top: clamp(22px, 5vw, 34px);
     padding-bottom: 72px;
-    background: transparent;
+    background: transparent !important;
   }
 
   .os-topbar {
     height: 58px;
     padding: 0 12px;
+    background: rgba(250, 250, 252, 0.76);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
   }
 
   .os-logo { width: 32px; height: 32px; border-radius: 9px; }
@@ -64,35 +74,18 @@
     max-height: 470px;
   }
 
-  .os-capture-empty {
-    padding: clamp(22px, 6vw, 30px);
-  }
-
-  .os-capture-empty:before {
-    inset: 14px;
-    border-radius: 18px;
-  }
+  .os-capture-empty { padding: clamp(22px, 6vw, 30px); }
+  .os-capture-empty:before { inset: 14px; border-radius: 18px; }
 
   .os-capture-mark {
     width: clamp(62px, 18vw, 78px);
     height: clamp(62px, 18vw, 78px);
     border-radius: 22px;
   }
+  .os-capture-mark svg { width: 30px; height: 30px; }
 
-  .os-capture-mark svg {
-    width: 30px;
-    height: 30px;
-  }
-
-  .os-capture-empty h2 {
-    font-size: clamp(25px, 7vw, 30px);
-    margin-bottom: 8px;
-  }
-
-  .os-capture-empty p {
-    font-size: 14px;
-    line-height: 1.42;
-  }
+  .os-capture-empty h2 { font-size: clamp(25px, 7vw, 30px); margin-bottom: 8px; }
+  .os-capture-empty p { font-size: 14px; line-height: 1.42; }
 
   .os-action-pair {
     width: 100%;
@@ -112,13 +105,7 @@
   }
 
   .os-preview img { object-fit: contain; }
-  .os-preview-footer {
-    left: 10px;
-    right: 10px;
-    bottom: 10px;
-    padding: 9px 10px;
-    border-radius: 13px;
-  }
+  .os-preview-footer { left: 10px; right: 10px; bottom: 10px; padding: 9px 10px; border-radius: 13px; }
   .os-preview-footer span { font-size: 10px; }
 
   .os-scan-progress {
@@ -141,86 +128,36 @@
   .os-result-placeholder h2,
   .os-product-card h2 { font-size: clamp(24px, 7vw, 29px); }
 
-  .os-product-top {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: start;
-    gap: 12px;
-  }
-
-  .os-identity-score {
-    width: 68px;
-    height: 68px;
-    border-radius: 21px;
-  }
+  .os-product-top { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px; }
+  .os-identity-score { width: 68px; height: 68px; border-radius: 21px; }
   .os-identity-score strong { font-size: 25px; }
 
-  .os-signal-card {
-    grid-template-columns: 74px minmax(0, 1fr);
-    gap: 14px;
-  }
+  .os-signal-card { grid-template-columns: 74px minmax(0, 1fr); gap: 14px; }
   .os-confidence-orb { width: 72px; height: 72px; }
   .os-confidence-orb strong { font-size: 27px; }
   .os-signal-card h3 { font-size: 18px; }
 
-  .os-intelligence-button {
-    width: 100%;
-    min-height: 70px;
-    border-radius: 21px;
-    padding: 0 18px;
-  }
+  .os-intelligence-button { width: 100%; min-height: 70px; border-radius: 21px; padding: 0 18px; }
   .os-intelligence-button strong { font-size: 16px; }
 
-  .os-intel-hero {
-    min-height: clamp(230px, 42vh, 300px);
-    padding: 24px;
-    border-radius: 28px;
-  }
-  .os-intel-hero h1 {
-    font-size: clamp(35px, 10vw, 48px);
-  }
+  .os-intel-hero { min-height: clamp(230px, 42vh, 300px); padding: 24px; border-radius: 28px; }
+  .os-intel-hero h1 { font-size: clamp(35px, 10vw, 48px); }
   .os-intel-hero p { font-size: 14px; }
+  .os-intel-badges span { padding: 7px 9px; font-size: 9px; }
 
-  .os-intel-badges span {
-    padding: 7px 9px;
-    font-size: 9px;
-  }
-
-  .os-metric-card {
-    min-height: 142px;
-    padding: 20px;
-    border-radius: 22px;
-  }
+  .os-metric-card { min-height: 142px; padding: 20px; border-radius: 22px; }
   .os-metric-card > div strong { font-size: 48px; }
   .os-next-milestone { font-size: 26px; }
 
-  .os-position-card {
-    padding: 24px;
-    margin-bottom: 48px;
-  }
-
+  .os-position-card { padding: 24px; margin-bottom: 48px; }
   .os-section-block { margin-bottom: 52px; }
   .os-section-heading { margin-bottom: 18px; }
-  .os-section-heading h2 {
-    font-size: clamp(31px, 9vw, 40px);
-  }
+  .os-section-heading h2 { font-size: clamp(31px, 9vw, 40px); }
 
-  .os-timeline {
-    margin-right: -10px;
-    padding-right: 10px;
-  }
-  .os-timeline-item {
-    flex-basis: min(78vw, 280px);
-    min-height: 260px;
-    padding: 28px 18px 18px;
-  }
+  .os-timeline { margin-right: -10px; padding-right: 10px; }
+  .os-timeline-item { flex-basis: min(78vw, 280px); min-height: 260px; padding: 28px 18px 18px; }
 
-  .os-gap-summary {
-    min-height: 76px;
-    grid-template-columns: 36px minmax(0, 1fr) auto;
-    gap: 10px;
-    padding: 13px 14px;
-  }
+  .os-gap-summary { min-height: 76px; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 10px; padding: 13px 14px; }
   .os-gap-index { width: 34px; height: 34px; }
   .os-gap-summary strong { font-size: 13px; }
   .os-gap-editor { padding: 0 14px 16px; }
@@ -228,59 +165,30 @@
   .os-reassess-panel { padding: 22px; border-radius: 23px; }
   .os-reassess-panel h3 { font-size: 22px; }
 
-  .os-finding-card {
-    min-height: auto;
-    padding: 20px;
-    border-radius: 22px;
-  }
+  .os-finding-card { min-height: auto; padding: 20px; border-radius: 22px; }
   .os-finding-card h3 { font-size: 21px; }
 
-  .os-obligation-row {
-    min-height: 68px;
-    padding: 12px 14px;
-    grid-template-columns: 34px 1fr;
-    gap: 11px;
-  }
-
+  .os-obligation-row { min-height: 68px; padding: 12px 14px; grid-template-columns: 34px 1fr; gap: 11px; }
   .os-intel-footer-grid .os-card { padding: 20px; }
 
-  .os-simple-hero {
-    padding: 22px 0 32px;
-  }
+  .os-simple-hero { padding: 22px 0 32px; }
   .os-simple-hero h1,
-  .os-intelligence-empty h1 {
-    font-size: clamp(34px, 10vw, 46px);
-  }
+  .os-intelligence-empty h1 { font-size: clamp(34px, 10vw, 46px); }
   .os-simple-hero p,
-  .os-intelligence-empty p {
-    font-size: 15px;
-  }
+  .os-intelligence-empty p { font-size: 15px; }
 
-  .os-history-card {
-    padding: 14px;
-    grid-template-columns: 40px minmax(0, 1fr);
-    gap: 10px;
-  }
+  .os-history-card { padding: 14px; grid-template-columns: 40px minmax(0, 1fr); gap: 10px; }
   .os-history-icon { width: 40px; height: 40px; border-radius: 13px; }
-
-  .os-settings-card {
-    min-height: auto;
-    padding: 22px;
-  }
+  .os-settings-card { min-height: auto; padding: 22px; }
 
   .os-camera-modal { padding: 0; }
-  .os-camera-shell {
-    width: 100vw;
-    height: 100dvh;
-    max-height: none;
-    border-radius: 0;
-  }
+  .os-camera-shell { width: 100vw; height: 100dvh; max-height: none; border-radius: 0; }
   .os-camera-frame { inset: 10% 7% 18%; }
   .os-camera-close { top: max(16px, env(safe-area-inset-top)); right: 14px; }
   .os-camera-live { top: max(18px, env(safe-area-inset-top)); left: 14px; }
   .os-camera-controls { bottom: max(22px, calc(env(safe-area-inset-bottom) + 14px)); }
 
-  .os-footer { padding: 28px 14px 34px; }
+  .os-footer { padding: 28px 14px 34px; background: transparent; }
 }
 
 @media (max-width: 390px) {
@@ -293,10 +201,7 @@
   .os-capture-card,
   .os-capture-empty,
   .os-preview,
-  .os-preview img {
-    height: clamp(330px, 54vh, 410px);
-    min-height: 330px;
-  }
+  .os-preview img { height: clamp(330px, 54vh, 410px); min-height: 330px; }
   .os-product-top { grid-template-columns: 1fr; }
   .os-identity-score { width: 64px; height: 64px; }
   .os-signal-card { grid-template-columns: 64px minmax(0, 1fr); }
@@ -309,10 +214,7 @@
   .os-capture-card,
   .os-capture-empty,
   .os-preview,
-  .os-preview img {
-    height: min(72vh, 360px);
-    min-height: 300px;
-  }
+  .os-preview img { height: min(72vh, 360px); min-height: 300px; }
   .os-scan-hero { margin-bottom: 18px; }
   .os-scan-hero h1 { font-size: 36px; }
   .os-camera-shell { height: 100dvh; }
