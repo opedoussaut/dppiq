@@ -1,11 +1,11 @@
-from backend.engine import compare_regulation_versions, evaluate_candidate_generation, evaluate_passport
+from backend.engine import compare_regulation_versions, evaluate_candidate_generation, evaluate_product_record
 
 
 REFERENCE = {
     "reference_id": "EU-ESPR-DPP-2024-1781",
     "legal_basis": "Regulation (EU) 2024/1781",
     "status": "in_force",
-    "last_verified_by_dppiq": "2026-08-19",
+    "last_verified_by_regiq": "2026-08-19",
     "authoritative_source": {"url": "https://eur-lex.europa.eu/eli/reg/2024/1781/oj"},
     "commission_reference": {"url": "https://single-market-economy.ec.europa.eu/single-market/digital-product-passport_en"},
     "scope_note": "test",
@@ -17,8 +17,8 @@ REFERENCE = {
 }
 
 
-def test_passport_framework_readiness_and_iq():
-    passport = {
+def test_product_record_framework_readiness_and_iq():
+    product_record = {
         "identity": {"product_id": "X"},
         "dpp": {"open_interoperable": True},
         "repair": {"spare_parts_available_years": 6},
@@ -26,11 +26,11 @@ def test_passport_framework_readiness_and_iq():
         "evidence": [{"type": "bom"}, {"type": "repair_manual"}],
         "legal_applicability": {"product_specific_dpp_obligation_identified": False},
     }
-    result = evaluate_passport(passport, REFERENCE)
+    result = evaluate_product_record(product_record, REFERENCE)
     assert result["framework_readiness"] == 100
     assert result["overall_iq"] > 0
     assert result["legal_conclusion"] == "none"
-    assert result["score_classification"] == "DPPIQ_INTELLIGENCE"
+    assert result["score_classification"] == "REGIQ_INTELLIGENCE"
     assert [r for r in result["requirements"] if r["classification"] == "PRODUCT_SPECIFIC"][0]["status"] == "not_asserted"
 
 
@@ -41,7 +41,7 @@ def test_regulation_change_detection():
     assert len(result["added"]) == 1
     assert len(result["changed"]) == 1
     assert result["removed"] == []
-    assert result["classification"] == "DPPIQ_SIMULATION"
+    assert result["classification"] == "REGIQ_SIMULATION"
 
 
 def test_evolution_requires_all_guardrails():
