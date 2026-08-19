@@ -19,12 +19,28 @@ function ScanExperience() {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [cameraOpen, setCameraOpen] = useState(false)
+  const [cameraReady, setCameraReady] = useState(false)
   const [stream, setStream] = useState(null)
   const imageRef = useRef(null)
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
 
   useEffect(() => () => stream?.getTracks().forEach(track => track.stop()), [stream])
+
+  useEffect(() => {
+    if (!cameraOpen || !stream || !videoRef.current) return
+    const video = videoRef.current
+    video.srcObject = stream
+    const markReady = () => setCameraReady(video.videoWidth > 0 && video.videoHeight > 0)
+    video.addEventListener('loadedmetadata', markReady)
+    video.addEventListener('playing', markReady)
+    video.play().then(markReady).catch(() => setMessage('The camera opened, but the browser could not start the live preview. Try closing and reopening it.'))
+    return () => {
+      video.removeEventListener('loadedmetadata', markReady)
+      video.removeEventListener('playing', markReady)
+      if (video.srcObject === stream) video.srcObject = null
+    }
+  }, [cameraOpen, stream])
 
   async function tryBarcode() {
     if (!imageRef.current) return
@@ -55,27 +71,31 @@ function ScanExperience() {
   async function handleFile(event) { await submitFile(event.target.files?.[0]) }
 
   async function openCamera() {
-    setMessage('')
+    setMessage(''); setCameraReady(false)
     if (!navigator.mediaDevices?.getUserMedia) {
       setMessage('Live camera is not available in this browser. Use Upload photo instead.')
       return
     }
     try {
       const media = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false })
-      setStream(media); setCameraOpen(true)
-      setTimeout(() => { if (videoRef.current) { videoRef.current.srcObject = media; videoRef.current.play().catch(() => {}) } }, 0)
+      setStream(media)
+      setCameraOpen(true)
     } catch (error) {
-      setMessage(error?.name === 'NotAllowedError' ? 'Camera permission was denied. Allow camera access in your browser site settings and try again.' : 'DPPIQ could not open this device camera. You can still upload a photo.')
+      setMessage(error?.name === 'NotAllowedError' ? 'Camera permission was denied. Allow camera access in your browser site settings and try again.' : `DPPIQ could not open this device camera${error?.name ? ` (${error.name})` : ''}. You can still upload a photo.`)
     }
   }
 
   function closeCamera() {
-    stream?.getTracks().forEach(track => track.stop()); setStream(null); setCameraOpen(false)
+    stream?.getTracks().forEach(track => track.stop())
+    setStream(null); setCameraOpen(false); setCameraReady(false)
   }
 
   async function capturePhoto() {
     const video = videoRef.current; const canvas = canvasRef.current
-    if (!video || !canvas || !video.videoWidth) return
+    if (!video || !canvas || !video.videoWidth) {
+      setMessage('The live camera is not ready yet. Wait for the picture to appear, then capture.')
+      return
+    }
     canvas.width = video.videoWidth; canvas.height = video.videoHeight
     canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height)
     canvas.toBlob(async blob => {
@@ -104,7 +124,7 @@ function ScanExperience() {
     </div>
     {message && <div className="error">{message}</div>}
     <div className="trust-strip"><div><Camera size={18}/><span><strong>1. Identify</strong> using camera, barcode, visible text and vision</span></div><div><Scale size={18}/><span><strong>2. Regulate</strong> with independent EU-source rules</span></div><div><FileCheck2 size={18}/><span><strong>3. Discover</strong> verified public DPPs only</span></div></div>
-    {cameraOpen && <div className="camera-modal"><div className="camera-shell"><video ref={videoRef} autoPlay playsInline muted/><div className="live-badge"><span/> LIVE</div><button className="camera-close" onClick={closeCamera} aria-label="Close camera"><X/></button><div className="camera-frame"><i/><i/><i/><i/></div><div className="camera-controls"><button className="shutter" onClick={capturePhoto} aria-label="Take photo"><Aperture size={34}/></button><span>Place the product in the frame and capture</span></div></div></div>}
+    {cameraOpen && <div className="camera-modal"><div className="camera-shell"><video ref={videoRef} autoPlay playsInline muted/><div className="live-badge"><span/> {cameraReady ? 'LIVE' : 'CONNECTING…'}</div><button className="camera-close" onClick={closeCamera} aria-label="Close camera"><X/></button><div className="camera-frame"><i/><i/><i/><i/></div><div className="camera-controls"><button className="shutter" onClick={capturePhoto} disabled={!cameraReady} aria-label="Take photo"><Aperture size={34}/></button><span>{cameraReady ? 'Place the product in the frame and capture' : 'Starting camera preview…'}</span></div></div></div>}
     <canvas ref={canvasRef} style={{display:'none'}}/>
   </section>
 }
