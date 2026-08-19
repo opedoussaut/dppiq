@@ -1,8 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import App from './App'
-import './styles.css'
-import './yuka.css'
+import App from './AppV2'
+import './regiq-os.css'
 
 if ('serviceWorker' in navigator && (window.isSecureContext || location.hostname === 'localhost')) {
   window.addEventListener('load', () => {
