@@ -12,7 +12,7 @@ from .vision import identify_product, regulatory_status_for_category, vision_con
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
 
-app = FastAPI(title="DPPIQ API", version="0.4.0")
+app = FastAPI(title="DPPIQ API", version="0.4.1")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -28,7 +28,7 @@ def load_json(path: Path):
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "name": "DPPIQ", "version": "0.4.0"}
+    return {"status": "ok", "name": "DPPIQ", "version": "0.4.1"}
 
 
 @app.get("/api/passport")
@@ -76,7 +76,7 @@ def scan_config():
 async def scan_image(file: UploadFile = File(...)):
     image_bytes = await file.read()
     content_type = file.content_type or "image/jpeg"
-    identification = await identify_product(image_bytes, content_type)
+    identification = await identify_product(image_bytes)
 
     category = identification.get("category") if identification.get("status") == "identified" else None
     regulatory = regulatory_status_for_category(category)
