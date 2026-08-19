@@ -17,10 +17,7 @@ document.addEventListener('click', event => {
   input.click()
 })
 
-// The generic secondary-button palette is designed for light cards. Override it
-// inside the dark capture panel so Upload looks active rather than disabled.
-// Also keep failed-identification states clean: no dossier CTA or confidence card
-// should appear until REGIQ has a successfully identified product.
+// Keep the interaction fixes and make the in-app mark match the installed PWA icon.
 const uploadStyle = document.createElement('style')
 uploadStyle.textContent = `
   .os-capture-empty .os-file-button {
@@ -39,6 +36,13 @@ uploadStyle.textContent = `
   .os-scan-result:has(.os-warning-card) .os-intelligence-button,
   .os-scan-result:has(.os-warning-card) .os-signal-card {
     display: none !important;
+  }
+
+  .os-logo {
+    color: transparent !important;
+    background:
+      url('/regiq-icon.svg?v=2') center / cover no-repeat !important;
+    box-shadow: 0 7px 18px rgba(24, 32, 52, .14) !important;
   }
 `
 document.head.appendChild(uploadStyle)
