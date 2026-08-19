@@ -1,5 +1,5 @@
-const CACHE = 'dppiq-shell-v1'
-const SHELL = ['/', '/manifest.webmanifest', '/dppiq-icon.svg']
+const CACHE = 'regiq-shell-v1'
+const SHELL = ['/', '/manifest.webmanifest', '/regiq-icon.svg']
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).catch(() => undefined))
