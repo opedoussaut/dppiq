@@ -7,7 +7,7 @@ from fastapi import FastAPI, File, Header, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from .engine import compare_regulation_versions, evaluate_candidate_generation, evaluate_passport
+from .engine import compare_regulation_versions, evaluate_candidate_generation
 from .regulatory import regulatory_profile_for_product
 from .vision import identify_product, vision_configuration
 
@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
 FRONTEND_DIST = ROOT / "frontend" / "dist"
 
-app = FastAPI(title="REGIQ API", version="0.8.0")
+app = FastAPI(title="REGIQ API", version="0.9.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -31,7 +31,7 @@ def load_json(path: Path):
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "name": "REGIQ", "version": "0.8.0"}
+    return {"status": "ok", "name": "REGIQ", "version": "0.9.0"}
 
 
 @app.get("/api/model/provenance")
@@ -40,26 +40,13 @@ def model_provenance():
     return {
         "software": {
             "name": "REGIQ",
-            "version": "0.8.0",
+            "version": "0.9.0",
             "license": "Apache-2.0",
             "repository": "https://github.com/opedoussaut/regiq",
         },
         "vision": config,
         "note": "The REGIQ software license does not automatically apply to model weights. Successful scan responses include best-effort provenance for the exact model used.",
     }
-
-
-@app.get("/api/passport")
-def passport():
-    return load_json(DATA / "sample_passport.json")
-
-
-@app.get("/api/intelligence")
-def intelligence():
-    return evaluate_passport(
-        load_json(DATA / "sample_passport.json"),
-        load_json(DATA / "regulatory_reference.json"),
-    )
 
 
 @app.get("/api/regulation/reference")
@@ -87,7 +74,7 @@ def scan_config():
         "camera_capture": True,
         "barcode_qr": True,
         "byo_header": "X-REGIQ-HF-Token",
-        "principle": "REGIQ identifies the product first, then maps multiple potentially applicable regulatory regimes. DPP is only one possible regime.",
+        "principle": "REGIQ identifies the product first, then maps multiple potentially applicable regulatory regimes. Digital Product Passport requirements are shown only when relevant.",
     }
 
 
@@ -116,12 +103,10 @@ async def scan_image(
         },
         "discovery": {
             "status": "ready_for_source_discovery" if regulatory_profile.get("regimes") else "waiting_for_identification",
-            "message": "REGIQ maps authoritative regulatory sources first. Digital Product Passport discovery is performed only where the applicable regime calls for it.",
+            "message": "REGIQ maps authoritative regulatory sources first. Digital Product Passport discovery is performed only where an applicable regime calls for it.",
         },
     }
 
 
-# In production builds the React app is copied into frontend/dist.
-# Mounting it last keeps every /api route authoritative while serving REGIQ from one process.
 if FRONTEND_DIST.exists():
     app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")
