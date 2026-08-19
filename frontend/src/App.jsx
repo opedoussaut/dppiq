@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Activity, BrainCircuit, CheckCircle2, FileCheck2, Recycle, Scale, ShieldAlert, Sparkles } from 'lucide-react'
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const API = import.meta.env.VITE_API_URL || ''
 
 function Metric({ icon: Icon, label, value, suffix = '' }) {
   return (
@@ -24,13 +24,19 @@ function App() {
 
   useEffect(() => {
     Promise.all([
-      fetch(`${API}/api/passport`).then(r => r.json()),
-      fetch(`${API}/api/intelligence`).then(r => r.json()),
-      fetch(`${API}/api/regulation/change`).then(r => r.json()),
-      fetch(`${API}/api/evolution`).then(r => r.json()),
+      fetch(`${API}/api/passport`).then(r => { if (!r.ok) throw new Error('passport'); return r.json() }),
+      fetch(`${API}/api/intelligence`).then(r => { if (!r.ok) throw new Error('intelligence'); return r.json() }),
+      fetch(`${API}/api/regulation/change`).then(r => { if (!r.ok) throw new Error('regulation'); return r.json() }),
+      fetch(`${API}/api/evolution`).then(r => { if (!r.ok) throw new Error('evolution'); return r.json() }),
     ])
-      .then(([p, i, c, e]) => { setPassport(p); setIntel(i); setChange(c); setEvolution(e) })
-      .catch(() => setError('DPPIQ API is not reachable. Start the FastAPI backend on port 8000.'))
+      .then(([p, i, c, e]) => {
+        setPassport(p)
+        setIntel(i)
+        setChange(c)
+        setEvolution(e)
+        setError('')
+      })
+      .catch(() => setError('DPPIQ API is not reachable. Make sure the FastAPI backend is running on port 8000.'))
   }, [])
 
   return (
