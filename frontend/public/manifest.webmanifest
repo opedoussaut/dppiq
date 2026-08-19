@@ -1,17 +1,30 @@
 {
+  "id": "/",
   "name": "REGIQ — Regulation Intelligence",
   "short_name": "REGIQ",
   "description": "Scan a product to understand the regulations, standards and passport obligations that may apply.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "any",
   "background_color": "#071312",
   "theme_color": "#071312",
+  "categories": ["business", "productivity", "utilities"],
   "icons": [
     {
       "src": "/regiq-icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Scan a product",
+      "short_name": "Scan",
+      "url": "/?view=scan",
+      "icons": [{"src": "/regiq-icon.svg", "sizes": "any", "type": "image/svg+xml"}]
     }
   ]
 }
