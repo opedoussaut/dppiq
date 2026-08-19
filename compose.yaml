@@ -1,0 +1,12 @@
+services:
+  regiq:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      REGIQ_VISION_ENABLED: "true"
+      REGIQ_VISION_PROVIDER: "huggingface"
+      REGIQ_HF_MODEL: "auto"
+      REGIQ_ALLOW_BYO_HF_TOKEN: "true"
+      HF_TOKEN: "${HF_TOKEN:-}"
+    restart: unless-stopped
