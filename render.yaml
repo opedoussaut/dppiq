@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: regiq
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: REGIQ_VISION_ENABLED
+        value: "true"
+      - key: REGIQ_VISION_PROVIDER
+        value: huggingface
+      - key: REGIQ_HF_MODEL
+        value: auto
+      - key: REGIQ_ALLOW_BYO_HF_TOKEN
+        value: "false"
+      - key: HF_TOKEN
+        sync: false
