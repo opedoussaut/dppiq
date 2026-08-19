@@ -38,7 +38,8 @@ test.describe('REGIQ release smoke', () => {
     const menu = page.locator('.os-mobile-menu')
     if (await menu.isVisible()) await menu.click()
     await page.getByRole('button', { name: /intelligence/i }).click()
-    await expect(page.getByText(/regulation intelligence/i).first()).toBeVisible()
+    await expect(page.getByRole('heading', { name: /no dossier yet/i })).toBeVisible()
+    await expect(page.getByText(/regiq intelligence/i)).toBeVisible()
     await assertNoHorizontalOverflow(page)
 
     if (await menu.isVisible()) await menu.click()
