@@ -1,0 +1,117 @@
+{
+  "reference_id": "EU-ESPR-DPP-2024-1781",
+  "title": "Ecodesign for Sustainable Products Regulation (EU) 2024/1781 — Digital Product Passport framework",
+  "jurisdiction": "European Union",
+  "status": "in_force",
+  "legal_basis": "Regulation (EU) 2024/1781",
+  "official_journal_date": "2024-06-28",
+  "last_verified_by_dppiq": "2026-08-19",
+  "authoritative_source": {
+    "publisher": "EUR-Lex",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1781/oj",
+    "type": "official_legal_text"
+  },
+  "commission_reference": {
+    "publisher": "European Commission — DG GROW",
+    "url": "https://single-market-economy.ec.europa.eu/single-market/digital-product-passport_en",
+    "type": "official_guidance"
+  },
+  "registry_reference": {
+    "status": "operational",
+    "operational_since": "2026-07-20",
+    "publisher": "European Commission — DG GROW",
+    "url": "https://single-market-economy.ec.europa.eu/news/digital-product-passport-registry-now-live-2026-07-20_en"
+  },
+  "scope_note": "ESPR establishes the horizontal DPP framework. Product-specific DPP content, data carrier details, granularity and access rights are specified through applicable delegated acts or other Union legislation. DPPIQ does not infer a product-specific legal obligation where no applicable act has been identified.",
+  "provisions": [
+    {
+      "id": "ESPR-A9-ACCURATE-UPTODATE",
+      "classification": "EU_FRAMEWORK",
+      "article": "9(1)",
+      "title": "DPP data must be accurate, complete and up to date",
+      "summary": "Where a DPP is required by an applicable delegated act, the passport data must be accurate, complete and up to date.",
+      "evaluation": "evidence_and_governance",
+      "field": "dpp.data_governance"
+    },
+    {
+      "id": "ESPR-A9-PRODUCT-SPECIFIC",
+      "classification": "PRODUCT_SPECIFIC",
+      "article": "9(2)",
+      "title": "Product-specific DPP content is defined by applicable acts",
+      "summary": "Applicable delegated acts specify the data, data carrier, positioning, granularity and customer access arrangements for covered product groups.",
+      "evaluation": "applicability",
+      "field": null
+    },
+    {
+      "id": "ESPR-A10-UNIQUE-ID",
+      "classification": "EU_FRAMEWORK",
+      "article": "10(1)(a)",
+      "title": "Persistent unique product identifier",
+      "summary": "The DPP is connected through a data carrier to a persistent unique product identifier.",
+      "evaluation": "presence",
+      "field": "identity.product_id"
+    },
+    {
+      "id": "ESPR-A10-DATA-CARRIER",
+      "classification": "EU_FRAMEWORK",
+      "article": "10(1)(b)",
+      "title": "Data carrier associated with the product",
+      "summary": "The data carrier is physically present on the product, packaging or accompanying documentation as specified by the applicable act.",
+      "evaluation": "presence",
+      "field": "dpp.data_carrier.type"
+    },
+    {
+      "id": "ESPR-A10-OPEN-INTEROPERABLE",
+      "classification": "EU_FRAMEWORK",
+      "article": "10(1)(d)",
+      "title": "Open and interoperable data",
+      "summary": "DPP data is based on open standards and designed to be interoperable and, where appropriate, machine-readable, structured, searchable and transferable without vendor lock-in.",
+      "evaluation": "boolean",
+      "field": "dpp.open_interoperable"
+    },
+    {
+      "id": "ESPR-A11-INTEROPERABILITY",
+      "classification": "EU_FRAMEWORK",
+      "article": "11(a)",
+      "title": "End-to-end DPP interoperability",
+      "summary": "The technical, semantic and organisational design supports interoperability with other DPPs required under ESPR delegated acts.",
+      "evaluation": "boolean",
+      "field": "dpp.interoperability_declared"
+    },
+    {
+      "id": "ESPR-A11-ACCESS",
+      "classification": "EU_FRAMEWORK",
+      "article": "11(b)",
+      "title": "Free and easy access according to access rights",
+      "summary": "Relevant actors have free and easy access to the DPP according to access rights established by the applicable act.",
+      "evaluation": "boolean",
+      "field": "dpp.access_control_declared"
+    }
+  ],
+  "dppiq_extensions": [
+    {
+      "id": "DPPIQ-IQ-SCORE",
+      "classification": "DPPIQ_INTELLIGENCE",
+      "title": "DPP IQ score",
+      "description": "Composite DPPIQ quality/readiness indicator. Not an EU regulatory score."
+    },
+    {
+      "id": "DPPIQ-EVIDENCE-QUALITY",
+      "classification": "DPPIQ_INTELLIGENCE",
+      "title": "Evidence quality score",
+      "description": "DPPIQ assessment of evidence coverage and provenance."
+    },
+    {
+      "id": "DPPIQ-CIRCULARITY",
+      "classification": "DPPIQ_INTELLIGENCE",
+      "title": "Circularity readiness",
+      "description": "DPPIQ analysis based on product data; not a legal compliance conclusion."
+    },
+    {
+      "id": "DPPIQ-EVOLUTION",
+      "classification": "DPPIQ_INTELLIGENCE",
+      "title": "Agent evolution engine",
+      "description": "Benchmark-gated improvement of DPPIQ agent workflows."
+    }
+  ]
+}
