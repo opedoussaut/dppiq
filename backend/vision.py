@@ -9,14 +9,14 @@ import httpx
 
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
-VISION_PROVIDER = os.getenv("DPPIQ_VISION_PROVIDER", "ollama").lower()
-VISION_MODEL = os.getenv("DPPIQ_VISION_MODEL", "qwen3-vl:2b")
-HF_MODEL = os.getenv("DPPIQ_HF_MODEL", "auto")
+VISION_PROVIDER = os.getenv("REGIQ_VISION_PROVIDER", os.getenv("DPPIQ_VISION_PROVIDER", "ollama")).lower()
+VISION_MODEL = os.getenv("REGIQ_VISION_MODEL", os.getenv("DPPIQ_VISION_MODEL", "qwen3-vl:2b"))
+HF_MODEL = os.getenv("REGIQ_HF_MODEL", os.getenv("DPPIQ_HF_MODEL", "auto"))
 HF_TOKEN = os.getenv("HF_TOKEN", "")
 HF_ROUTER = "https://router.huggingface.co/v1"
-VISION_ENABLED = os.getenv("DPPIQ_VISION_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
+VISION_ENABLED = os.getenv("REGIQ_VISION_ENABLED", os.getenv("DPPIQ_VISION_ENABLED", "false")).lower() in {"1", "true", "yes", "on"}
 
-VISION_PROMPT = """You are the product-identification component of DPPIQ.
+VISION_PROMPT = """You are the product-identification component of REGIQ, an open-source product regulation intelligence system.
 Identify the primary physical product in this image. Return ONLY valid JSON with these keys:
 {
   "product_type": "short generic product type, e.g. plastic beverage bottle",
@@ -234,7 +234,7 @@ def regulatory_status_for_category(category: str | None) -> dict[str, Any]:
             "legal_basis": None,
             "effective_date": None,
             "source_url": None,
-            "scope_note": "DPPIQ must identify the product category before assessing applicable DPP rules.",
+            "scope_note": "REGIQ must identify the product category before assessing potentially applicable regulatory regimes.",
             "classification": "NOT_ASSESSED",
         }
 
@@ -251,10 +251,10 @@ def regulatory_status_for_category(category: str | None) -> dict[str, Any]:
 
     return {
         "status": "no_product_specific_rule_identified",
-        "label": "No product-specific DPP obligation identified by this DPPIQ prototype",
+        "label": "No product-specific DPP obligation identified in the current REGIQ knowledge base",
         "legal_basis": "Regulation (EU) 2024/1781 establishes the DPP framework; product-specific obligations require applicable product rules.",
         "effective_date": None,
         "source_url": "https://eur-lex.europa.eu/eli/reg/2024/1781/oj",
-        "scope_note": "This is not a statement that the product is excluded from future DPP rules. DPPIQ must match the product against applicable delegated acts or sector legislation.",
+        "scope_note": "This is not a claim that no regulation applies. REGIQ's current knowledge base is still narrow and must be expanded across additional regulatory regimes.",
         "classification": "EU_FRAMEWORK",
     }
