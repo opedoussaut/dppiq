@@ -18,6 +18,8 @@ document.addEventListener('click', event => {
 
 // The generic secondary-button palette is designed for light cards. Override it
 // inside the dark capture panel so Upload looks active rather than disabled.
+// Also keep failed-identification states clean: no dossier CTA or confidence card
+// should appear until REGIQ has a successfully identified product.
 const uploadStyle = document.createElement('style')
 uploadStyle.textContent = `
   .os-capture-empty .os-file-button {
@@ -32,6 +34,11 @@ uploadStyle.textContent = `
     transform: translateY(-1px);
   }
   .os-capture-empty .os-file-button svg { color: #fff; }
+
+  .os-scan-result:has(.os-warning-card) .os-intelligence-button,
+  .os-scan-result:has(.os-warning-card) .os-signal-card {
+    display: none !important;
+  }
 `
 document.head.appendChild(uploadStyle)
 
