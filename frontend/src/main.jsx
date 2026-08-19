@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import './styles.css'
+import './yuka.css'
 
 if ('serviceWorker' in navigator && (window.isSecureContext || location.hostname === 'localhost')) {
   window.addEventListener('load', () => {
