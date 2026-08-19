@@ -5,6 +5,20 @@
     "manufacturer": "Open Demo Industries",
     "model": "OE-100"
   },
+  "dpp": {
+    "data_carrier": {
+      "type": "QR",
+      "location": "product label"
+    },
+    "open_interoperable": true,
+    "interoperability_declared": true,
+    "access_control_declared": true,
+    "data_governance": {
+      "owner": "Open Demo Industries",
+      "last_updated": "2026-08-19",
+      "version": "1.0"
+    }
+  },
   "materials": [
     {"name": "Aluminium", "mass_g": 180, "recycled_content_percent": 60},
     {"name": "FR-4 PCB", "mass_g": 95, "recycled_content_percent": 5},
@@ -26,5 +40,10 @@
     {"type": "supplier_declaration", "subject": "aluminium recycled content", "status": "available"},
     {"type": "bill_of_materials", "subject": "material composition", "status": "available"},
     {"type": "repair_manual", "subject": "repair and disassembly", "status": "available"}
-  ]
+  ],
+  "legal_applicability": {
+    "espr_framework": true,
+    "product_specific_dpp_obligation_identified": false,
+    "note": "Demo product. DPPIQ has not identified an applicable product-specific ESPR delegated act for this sample and therefore does not claim that a DPP is currently mandatory for it."
+  }
 }
