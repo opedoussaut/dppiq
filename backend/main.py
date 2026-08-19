@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .category import normalize_identification
+from .complex_products import complex_product_profile
 from .engine import compare_regulation_versions, evaluate_candidate_generation
 from .regulatory import regulatory_profile_for_product
 from .vision import identify_product, vision_configuration
@@ -16,7 +17,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
 FRONTEND_DIST = ROOT / "frontend" / "dist"
 
-app = FastAPI(title="REGIQ API", version="1.0.0-beta.1")
+app = FastAPI(title="REGIQ API", version="1.0.0-beta.2")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -36,7 +37,7 @@ def health():
     return {
         "status": "ok",
         "name": "REGIQ",
-        "version": "1.0.0-beta.1",
+        "version": "1.0.0-beta.2",
         "regulatory_catalog_version": catalog.get("catalog_version"),
         "regulatory_catalog_verified_at": catalog.get("verified_at"),
     }
@@ -48,7 +49,7 @@ def model_provenance():
     return {
         "software": {
             "name": "REGIQ",
-            "version": "1.0.0-beta.1",
+            "version": "1.0.0-beta.2",
             "license": "Apache-2.0",
             "repository": "https://github.com/opedoussaut/regiq",
         },
@@ -86,11 +87,13 @@ def scan_config():
     return {
         "vision": vision_configuration(),
         "camera_capture": True,
+        "image_upload": True,
+        "complex_product_screening": True,
         "barcode_qr": True,
         "byo_header": "X-REGIQ-HF-Token",
-        "reference_product_families": sorted(catalog.get("product_families", {}).keys()),
+        "reference_product_families": sorted(set(catalog.get("product_families", {}).keys()) | {"server", "data_storage_system", "ups", "sli_battery"}),
         "regulatory_catalog_version": catalog.get("catalog_version"),
-        "principle": "REGIQ identifies the product first, normalizes it to a regulatory product family, then maps multiple potentially applicable regulatory regimes. Digital Product Passport requirements are shown only when a specific legal basis supports them.",
+        "principle": "REGIQ identifies the product first, normalizes it to a regulatory product family, then maps multiple potentially applicable regulatory regimes. Complex products retain explicit missing-evidence questions instead of forcing a premature conclusion.",
     }
 
 
@@ -103,7 +106,7 @@ async def scan_image(
     content_type = file.content_type or "image/jpeg"
     raw_identification = await identify_product(image_bytes, hf_token_override=x_regiq_hf_token)
     identification = normalize_identification(raw_identification)
-    regulatory_profile = regulatory_profile_for_product(identification)
+    regulatory_profile = complex_product_profile(identification) or regulatory_profile_for_product(identification)
 
     return {
         "filename": file.filename,
@@ -120,7 +123,7 @@ async def scan_image(
         },
         "discovery": {
             "status": "ready_for_source_discovery" if regulatory_profile.get("regimes") else "waiting_for_identification",
-            "message": "REGIQ maps curated authoritative regulatory sources first. Digital Product Passport discovery is performed only where an applicable regime calls for it.",
+            "message": "REGIQ maps curated authoritative regulatory sources first. Complex products may require additional technical evidence before a strong applicability conclusion is possible.",
         },
     }
 
