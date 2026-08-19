@@ -1,0 +1,11 @@
+{
+  "version": "2027-demo-2",
+  "status": "illustrative",
+  "requirements": [
+    {"id": "IDENTITY", "title": "Unique product identity", "field": "identity.product_id"},
+    {"id": "MATERIALS", "title": "Material composition", "field": "materials"},
+    {"id": "SPARES", "title": "Spare-parts information", "field": "repair.spare_parts_available_years"},
+    {"id": "DISASSEMBLY", "title": "Disassembly guidance", "field": "circularity.disassembly_instructions"},
+    {"id": "RECYCLED", "title": "Recycled-content evidence", "field": "circularity.recycled_content_percent"}
+  ]
+}
