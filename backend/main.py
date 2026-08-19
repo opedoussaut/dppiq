@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, Header, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from .engine import compare_regulation_versions, evaluate_candidate_generation, evaluate_passport
@@ -13,7 +13,7 @@ from .vision import identify_product, vision_configuration
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
 
-app = FastAPI(title="REGIQ API", version="0.6.0")
+app = FastAPI(title="REGIQ API", version="0.7.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -29,7 +29,22 @@ def load_json(path: Path):
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "name": "REGIQ", "version": "0.6.0"}
+    return {"status": "ok", "name": "REGIQ", "version": "0.7.0"}
+
+
+@app.get("/api/model/provenance")
+def model_provenance():
+    config = vision_configuration()
+    return {
+        "software": {
+            "name": "REGIQ",
+            "version": "0.7.0",
+            "license": "Apache-2.0",
+            "repository": "https://github.com/opedoussaut/regiq",
+        },
+        "vision": config,
+        "note": "The REGIQ software license does not automatically apply to model weights. Successful scan responses include best-effort provenance for the exact model used.",
+    }
 
 
 @app.get("/api/passport")
@@ -69,15 +84,19 @@ def scan_config():
         "vision": vision_configuration(),
         "camera_capture": True,
         "barcode_qr": True,
+        "byo_header": "X-REGIQ-HF-Token",
         "principle": "REGIQ identifies the product first, then maps multiple potentially applicable regulatory regimes. DPP is only one possible regime.",
     }
 
 
 @app.post("/api/scan/image")
-async def scan_image(file: UploadFile = File(...)):
+async def scan_image(
+    file: UploadFile = File(...),
+    x_regiq_hf_token: str | None = Header(default=None, alias="X-REGIQ-HF-Token"),
+):
     image_bytes = await file.read()
     content_type = file.content_type or "image/jpeg"
-    identification = await identify_product(image_bytes)
+    identification = await identify_product(image_bytes, hf_token_override=x_regiq_hf_token)
     regulatory_profile = regulatory_profile_for_product(identification)
 
     return {
