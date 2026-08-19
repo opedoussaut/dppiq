@@ -16,7 +16,7 @@ VISION_PROMPT = """You are the product-identification component of DPPIQ.
 Identify the physical product in this image. Return ONLY valid JSON with these keys:
 {
   "product_type": "short generic product type",
-  "category": "one of: consumer_electronics, household_appliance, power_tool, textile, footwear, tyre, battery_ev, battery_lmt, battery_industrial_gt_2kwh, battery_other, furniture, industrial_equipment, other",
+  "category": "one of: plastic_beverage_bottle, packaging, consumer_electronics, household_appliance, power_tool, textile, footwear, tyre, battery_ev, battery_lmt, battery_industrial_gt_2kwh, battery_other, furniture, industrial_equipment, other",
   "brand": "brand if visible, otherwise null",
   "model": "model if visible, otherwise null",
   "visible_text": ["important text seen on labels"],
@@ -93,7 +93,16 @@ async def identify_product(image_bytes: bytes) -> dict[str, Any]:
 
 
 def regulatory_status_for_category(category: str | None) -> dict[str, Any]:
-    category = category or "other"
+    if not category:
+        return {
+            "status": "not_assessed",
+            "label": "Regulatory status not assessed",
+            "legal_basis": None,
+            "effective_date": None,
+            "source_url": None,
+            "scope_note": "DPPIQ must identify the product category before assessing applicable DPP rules.",
+            "classification": "NOT_ASSESSED",
+        }
 
     if category in {"battery_ev", "battery_lmt", "battery_industrial_gt_2kwh"}:
         return {
