@@ -18,6 +18,37 @@ DPPIQ treats regulation as a changing environment. When regulatory requirements 
 
 The goal is **auditable self-improvement**, not uncontrolled self-modifying code.
 
+## Scan-first vision
+
+DPPIQ is evolving into a **"Shazam for DPP"**: point a phone or laptop camera at a product, identify it from visual evidence/barcodes/text, then independently determine its Digital Product Passport regulatory status and search for verified public passport data.
+
+The recognition provider is pluggable. DPPIQ keeps product identification separate from regulatory reasoning.
+
+### Remote open-weight vision with Hugging Face
+
+The recommended Codespaces setup uses Hugging Face Inference Providers so multimodal inference runs remotely instead of consuming Codespace RAM.
+
+Create a Hugging Face token with **Inference Providers** permission, then start DPPIQ with:
+
+```bash
+export DPPIQ_VISION_ENABLED=true
+export DPPIQ_VISION_PROVIDER=huggingface
+export HF_TOKEN=hf_your_token_here
+export DPPIQ_HF_MODEL=Qwen/Qwen2.5-VL-7B-Instruct
+
+uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+The token is read from the environment and must never be committed to GitHub.
+
+For users with sufficient local hardware, Ollama remains supported:
+
+```bash
+export DPPIQ_VISION_ENABLED=true
+export DPPIQ_VISION_PROVIDER=ollama
+export DPPIQ_OLLAMA_MODEL=qwen3-vl:2b
+```
+
 ## V1 architecture
 
 ```text
@@ -81,20 +112,20 @@ npm install
 npm run dev -- --host 0.0.0.0
 ```
 
-The frontend expects the API at `http://localhost:8000` by default. Set `VITE_API_URL` to override it.
+The Vite development server proxies `/api` requests to the FastAPI backend on port 8000.
 
 ## Principles
 
 - **Public-first** — works without proprietary enterprise integrations.
 - **Source-aware** — regulation, extraction, interpretation and inferred conclusions are separate layers.
 - **Auditable** — every assessment carries evidence and provenance.
-- **Model-neutral** — agent interfaces are designed so open-weight or hosted models can be added without changing the domain model.
+- **Model-neutral** — agent interfaces support local or remotely hosted open-weight models without changing the domain model.
 - **Benchmark-gated evolution** — no new strategy is promoted only because an LLM claims it is better.
 - **Human-readable** — the UI exposes why DPPIQ reached a conclusion.
 
 ## Status
 
-Early prototype. The first milestone demonstrates a complete loop with sample data: passport inspection → regulatory impact → gap analysis → evolution benchmark.
+Early prototype. The current milestone combines product camera capture, pluggable vision identification, regulatory classification, passport intelligence and a benchmark-gated evolution layer.
 
 ## License
 
