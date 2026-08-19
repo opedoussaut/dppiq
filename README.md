@@ -2,23 +2,50 @@
 
 **Regulation Intelligence** — an open-source, mobile-first "Shazam for product regulation".
 
-Point a phone or laptop camera at a physical product. REGIQ identifies it, maps potentially applicable regulatory regimes, and explains the result with traceable public sources. Digital Product Passports are one possible regulatory dimension, not the boundary of the product.
+Point a phone or laptop camera at a physical product. REGIQ identifies it, normalizes it to a regulatory product family, maps potentially applicable EU regulatory regimes, and explains the result with traceable public sources. Digital Product Passports are one possible regulatory dimension, not the boundary of the product.
+
+> **Current release:** `1.0.0-beta.1`
+
+REGIQ is a regulatory-intelligence prototype, not legal advice or an automated compliance determination. Applicability can depend on exact specifications, intended use, market, dates, exemptions and Member State implementation.
+
+## Public-beta coverage
+
+REGIQ currently has curated EU regulatory families for:
+
+- plastic beverage bottles;
+- smartphones;
+- laptops;
+- wireless headphones / earbuds;
+- power banks;
+- household batteries;
+- LED lamps / bulbs;
+- power tools / drills;
+- textile garments;
+- electronic toys;
+- EV batteries, LMT batteries and industrial batteries above 2 kWh.
+
+Products outside these curated families deliberately fall back to **screening required** rather than claiming regulatory completeness.
+
+The regulatory catalog is stored in `data/regulatory_catalog.json`, versioned independently from application code, and exposes official EUR-Lex source links and a verification date.
 
 ## What works today
 
 - live camera capture on laptop and mobile;
 - photo upload and basic barcode signal validation;
 - pluggable open-weight visual identification through Hugging Face Inference Providers or Ollama;
-- multi-regime EU regulatory mapping;
+- product-family normalization between vision and regulatory reasoning;
+- multi-regime EU regulatory mapping with current / likely / conditional / upcoming / context distinctions;
 - product-specific Intelligence view based on the latest scan;
 - model/provider/license provenance where available;
+- regulatory-catalog version and source provenance;
 - local browser scan history;
 - optional Bring Your Own Hugging Face token flow;
 - Progressive Web App support for home-screen installation;
+- premium responsive mobile-first UI;
 - one-container Docker deployment;
+- Render deployment blueprint;
+- automated backend/frontend CI;
 - Apache-2.0 licensing for REGIQ itself.
-
-REGIQ is a prototype and does not provide legal advice. Regulatory applicability can depend on exact specifications, intended use, market, dates and Member State implementation.
 
 ## Fastest way to try it
 
@@ -56,14 +83,17 @@ docker compose up --build
 
 Then open `http://localhost:8000`.
 
-To use a server-owned Hugging Face token:
+### Public HTTPS deployment
+
+The repository includes `render.yaml` for a Docker-based Render deployment. Connect the repository, create a Blueprint, set `HF_TOKEN` as a platform secret, and deploy. See `docs/PUBLIC_BETA.md` and `docs/DEPLOYMENT.md`.
+
+For a frictionless public demo, use a server-side token and keep:
 
 ```bash
-export HF_TOKEN=hf_your_token_here
-docker compose up --build
+REGIQ_ALLOW_BYO_HF_TOKEN=false
 ```
 
-Without a server token, users can enter their own token in **Setup** when `REGIQ_ALLOW_BYO_HF_TOKEN=true`.
+That lets visitors scan immediately without supplying credentials.
 
 ## Mobile use
 
@@ -74,22 +104,9 @@ REGIQ is a Progressive Web App.
 - The live camera requests the environment-facing camera where supported.
 - The photo input uses `capture="environment"` as a mobile fallback.
 - Recent scan metadata and regulatory results are stored locally in the browser.
-- The Hugging Face token entered in Setup is kept only in page memory and is not persisted by the frontend.
+- A Hugging Face token entered in Setup is kept only in page memory and is not intentionally persisted by the frontend.
 
 A public deployment should use HTTPS for reliable camera and PWA behavior.
-
-## Easy user setup
-
-The REGIQ **Setup** screen shows:
-
-- current vision provider and model configuration;
-- whether the deployment has a server token;
-- whether Bring Your Own Hugging Face token is enabled;
-- a session-only token input when BYO is enabled;
-- software/model provenance;
-- mobile installation guidance.
-
-The BYO token is sent as `X-REGIQ-HF-Token` only with a scan request. REGIQ does not intentionally write it to local storage or scan history.
 
 ## Architecture
 
@@ -100,35 +117,42 @@ Camera / photo / identifier
  Product identification
           |
           v
- Regulatory classification
+ Product-family normalization
+          |
+          v
+ Versioned regulatory catalog
           |
     +-----+----------+----------+---------+
     |                |          |         |
     v                v          v         v
-Packaging        Batteries    ESPR     Other regimes
+Packaging        Batteries    ESPR     Sector rules
     |                |          |         |
     +----------------+----------+---------+
                      v
-            Regulatory evidence
+      Applicability + uncertainty layer
                      |
                      v
-          What applies / what next
+         Product intelligence dossier
 ```
 
-Recognition is probabilistic and replaceable. REGIQ keeps it separate from regulatory reasoning.
+Recognition is probabilistic and replaceable. REGIQ keeps visual identification, category normalization, regulatory sources and regulatory interpretation as separate layers.
 
-## Model provenance
+## Regulatory-source policy
 
-REGIQ itself is licensed under Apache-2.0. Model weights are separate works and retain their own licenses.
+The beta catalog prioritizes official EUR-Lex legal acts. Examples include PPWR Regulation (EU) 2025/40, Batteries Regulation (EU) 2023/1542, smartphone ecodesign Regulation (EU) 2023/1670, RoHS, WEEE, RED, the Common Charger Directive, REACH, GPSR, machinery legislation and toy-safety legislation.
 
-Successful Hugging Face scans return best-effort provenance including exact model identifier, provider, source URL, revision where available, and declared model-card license where available.
+`GET /api/regulation/catalog` exposes the current machine-readable catalog.
 
-Useful endpoints:
+## Useful endpoints
 
 ```text
-GET /api/health
-GET /api/scan/config
-GET /api/model/provenance
+GET  /api/health
+GET  /api/scan/config
+GET  /api/model/provenance
+GET  /api/regulation/catalog
+GET  /api/regulation/reference
+GET  /api/regulation/change
+GET  /api/evolution
 POST /api/scan/image
 ```
 
@@ -154,26 +178,28 @@ OLLAMA_BASE_URL=http://127.0.0.1:11434
 
 ## Repository layout
 
-- `backend/` — FastAPI, recognition gateway and regulatory intelligence
+- `backend/` — FastAPI, product-family normalization, recognition gateway and regulatory intelligence
 - `frontend/` — React/Vite mobile-first PWA
-- `data/` — public/sample products and regulatory snapshots
-- `docs/` — deployment and methodology
+- `data/regulatory_catalog.json` — versioned authoritative-source regulatory catalog
+- `data/` — additional regulatory snapshots and benchmark data
+- `docs/` — deployment, public-beta and methodology guides
 - `Dockerfile` — production frontend + backend image
 - `compose.yaml` — one-command startup
+- `render.yaml` — public-hosting blueprint
 - `.env.example` — safe configuration template
 - `LICENSE` — Apache License 2.0
 
 ## Self-improving workflow
 
-REGIQ treats regulation and agent performance as changing environments. Candidate improvements should detect and version regulatory changes, preserve source provenance, benchmark strategies against historical cases, reject regressions, and promote changes only when objective evaluation improves.
+REGIQ treats regulation and agent performance as changing environments. Candidate improvements should detect and version authoritative regulatory changes, translate them into candidate machine-readable rules, benchmark mappings against known products, reject regressions and false-compliance increases, and promote changes only when objective evaluation improves.
 
 The goal is **auditable self-improvement**, not uncontrolled self-modifying code.
 
 ## Principles
 
 - **Authoritative-source first** — legal conclusions remain traceable.
-- **No false certainty** — uncertainty is explicit.
-- **Model-neutral** — REGIQ is not tied to one provider.
+- **No false certainty** — uncertainty and incomplete coverage are explicit.
+- **Model-neutral** — REGIQ is not tied to one inference provider.
 - **Source-aware** — source, extraction, interpretation and conclusion remain separate.
 - **Auditable** — scans expose evidence and provenance.
 - **Public-first** — proprietary enterprise integrations are not required.
@@ -185,4 +211,4 @@ Never commit tokens. Use environment variables, platform secrets, or the optiona
 
 ## License
 
-REGIQ software is licensed under the **Apache License 2.0**. See `LICENSE`.
+REGIQ software is licensed under the **Apache License 2.0**. Third-party model weights, datasets, libraries and regulatory source materials retain their own terms. See `LICENSE`.
