@@ -10,13 +10,13 @@ import httpx
 
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
-VISION_PROVIDER = os.getenv("REGIQ_VISION_PROVIDER", os.getenv("DPPIQ_VISION_PROVIDER", "ollama")).lower()
-VISION_MODEL = os.getenv("REGIQ_VISION_MODEL", os.getenv("DPPIQ_VISION_MODEL", "qwen3-vl:2b"))
-HF_MODEL = os.getenv("REGIQ_HF_MODEL", os.getenv("DPPIQ_HF_MODEL", "auto"))
+VISION_PROVIDER = os.getenv("REGIQ_VISION_PROVIDER", "ollama").lower()
+VISION_MODEL = os.getenv("REGIQ_VISION_MODEL", "qwen3-vl:2b")
+HF_MODEL = os.getenv("REGIQ_HF_MODEL", "auto")
 HF_TOKEN = os.getenv("HF_TOKEN", "")
 HF_ROUTER = "https://router.huggingface.co/v1"
 HF_API = "https://huggingface.co/api/models"
-VISION_ENABLED = os.getenv("REGIQ_VISION_ENABLED", os.getenv("DPPIQ_VISION_ENABLED", "false")).lower() in {"1", "true", "yes", "on"}
+VISION_ENABLED = os.getenv("REGIQ_VISION_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
 ALLOW_BYO_HF_TOKEN = os.getenv("REGIQ_ALLOW_BYO_HF_TOKEN", "false").lower() in {"1", "true", "yes", "on"}
 MODEL_LICENSE_OVERRIDE = os.getenv("REGIQ_MODEL_LICENSE", "").strip()
 MODEL_SOURCE_OVERRIDE = os.getenv("REGIQ_MODEL_SOURCE_URL", "").strip()
