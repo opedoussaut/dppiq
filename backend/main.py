@@ -11,7 +11,7 @@ from .engine import compare_regulation_versions, evaluate_candidate_generation, 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
 
-app = FastAPI(title="DPPIQ API", version="0.1.0")
+app = FastAPI(title="DPPIQ API", version="0.2.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -27,7 +27,7 @@ def load_json(path: Path):
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "name": "DPPIQ", "version": "0.1.0"}
+    return {"status": "ok", "name": "DPPIQ", "version": "0.2.0"}
 
 
 @app.get("/api/passport")
@@ -37,7 +37,15 @@ def passport():
 
 @app.get("/api/intelligence")
 def intelligence():
-    return evaluate_passport(load_json(DATA / "sample_passport.json"))
+    return evaluate_passport(
+        load_json(DATA / "sample_passport.json"),
+        load_json(DATA / "regulatory_reference.json"),
+    )
+
+
+@app.get("/api/regulation/reference")
+def regulation_reference():
+    return load_json(DATA / "regulatory_reference.json")
 
 
 @app.get("/api/regulation/change")
