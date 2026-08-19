@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { BrowserMultiFormatReader } from '@zxing/browser'
 import {
-  Aperture, ArrowLeft, ArrowRight, BadgeCheck, BrainCircuit, CalendarDays, Camera,
-  Check, CheckCircle2, ChevronDown, Clock3, Download, FileCheck2, FileText,
+  Aperture, ArrowLeft, ArrowRight, BadgeCheck, BrainCircuit, Camera,
+  Check, CheckCircle2, ChevronDown, Download, FileCheck2, FileText,
   History, ImagePlus, KeyRound, Menu, RefreshCw, ScanLine, SearchCheck, Settings,
-  ShieldCheck, Sparkles, TrendingUp, Upload, X, AlertTriangle,
+  ShieldCheck, Sparkles, Upload, X, AlertTriangle,
 } from 'lucide-react'
 
 const API = import.meta.env.VITE_API_URL || ''
@@ -359,12 +359,12 @@ function ScanExperience({ latestScan, onScanComplete, onOpenIntelligence, hfToke
 }
 
 function GapCard({ gap, index, draft, onChange, expanded, onToggle }) {
-  const hasEvidence = Boolean(draft?.value?.trim() || draft?.attachment)
+  const hasEvidence = Boolean(draft?.value?.trim())
   return (
     <article className={`os-gap-card ${expanded ? 'expanded' : ''} ${hasEvidence ? 'ready' : ''}`}>
       <button className="os-gap-summary" onClick={onToggle}>
         <div className="os-gap-index">{hasEvidence ? <Check size={17} /> : String(index + 1).padStart(2, '0')}</div>
-        <div><strong>{gap}</strong><span>{hasEvidence ? 'Evidence ready for reassessment' : 'Bridge this gap to strengthen the investigation'}</span></div>
+        <div><strong>{gap}</strong><span>{hasEvidence ? 'Product fact ready for reassessment' : 'Bridge this gap to strengthen the investigation'}</span></div>
         <ChevronDown size={18} />
       </button>
       {expanded && (
@@ -395,7 +395,7 @@ function GapCard({ gap, index, draft, onChange, expanded, onToggle }) {
               />
             </label>
           </div>
-          {draft?.attachment && <p className="os-fineprint">The filename is registered as evidence context. Document contents are not parsed yet, so add the relevant fact above.</p>}
+          {draft?.attachment && <p className="os-fineprint">The filename is registered as supporting context. Document contents are not parsed yet, so an explicit product fact above is still required.</p>}
         </div>
       )}
     </article>
@@ -459,8 +459,8 @@ function IntelligenceDashboard({ latestScan, onReturnToScan, onReplaceLatest, hf
   const now = new Date()
   const nextMilestone = timeline.find(item => item.date && item.date.getTime() > now.getTime())
   const evidenceEntries = Object.entries(drafts)
-    .filter(([, value]) => value?.value?.trim() || value?.attachment)
-    .map(([gap, value]) => ({ gap, value: value.value || '', evidence_level: value.evidence_level || 'self_declared', attachment: value.attachment || '' }))
+    .filter(([, value]) => value?.value?.trim())
+    .map(([gap, value]) => ({ gap, value: value.value.trim(), evidence_level: value.evidence_level || 'self_declared', attachment: value.attachment || '' }))
 
   async function reassess() {
     if (!evidenceEntries.length) return
@@ -584,7 +584,7 @@ function IntelligenceDashboard({ latestScan, onReturnToScan, onReplaceLatest, hf
             <aside className="os-reassess-panel">
               <div className="os-reassess-icon"><RefreshCw size={22} /></div>
               <span className="os-overline">RE-RUN INTELLIGENCE</span>
-              <h3>{evidenceEntries.length ? `${evidenceEntries.length} evidence item${evidenceEntries.length === 1 ? '' : 's'} ready` : 'Add evidence to continue'}</h3>
+              <h3>{evidenceEntries.length ? `${evidenceEntries.length} product fact${evidenceEntries.length === 1 ? '' : 's'} ready` : 'Add a product fact to continue'}</h3>
               <p>The scan stays the same. REGIQ re-evaluates regulatory applicability, missing evidence and confidence using your new product facts.</p>
               <button className="os-primary-button os-full-button" disabled={!evidenceEntries.length || reassessing} onClick={reassess}>
                 {reassessing ? <><RefreshCw className="os-spin" size={17} /> Re-investigating…</> : <><Sparkles size={17} /> Re-run Intelligence</>}
@@ -602,7 +602,7 @@ function IntelligenceDashboard({ latestScan, onReturnToScan, onReplaceLatest, hf
         <section className="os-section-block">
           <div className="os-section-heading">
             <div><span className="os-overline">WHAT CHANGED</span><h2>Before → after.</h2></div>
-            <p>{comparison.evidenceCount} evidence item{comparison.evidenceCount === 1 ? '' : 's'} were added to a fresh investigator + verifier run.</p>
+            <p>{comparison.evidenceCount} product fact{comparison.evidenceCount === 1 ? '' : 's'} were added to a fresh investigator + verifier run.</p>
           </div>
           <div className="os-comparison-card">
             <div className="os-comparison-row"><span>Evidence confidence</span><DeltaValue before={comparison.before.confidence} after={comparison.after.confidence} suffix="%" /></div>
