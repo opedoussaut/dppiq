@@ -1,40 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
-    <linearGradient id="tile" x1="72" y1="54" x2="442" y2="468" gradientUnits="userSpaceOnUse">
+    <linearGradient id="bg" x1="80" y1="64" x2="432" y2="448" gradientUnits="userSpaceOnUse">
       <stop stop-color="#FFFFFF"/>
-      <stop offset="0.52" stop-color="#F7F8F9"/>
-      <stop offset="1" stop-color="#E9ECEF"/>
+      <stop offset="0.58" stop-color="#F5F6F7"/>
+      <stop offset="1" stop-color="#ECEFF0"/>
     </linearGradient>
-    <linearGradient id="mint" x1="120" y1="110" x2="392" y2="402" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#8AF3CF"/>
-      <stop offset="0.5" stop-color="#37D3A3"/>
-      <stop offset="1" stop-color="#14A87D"/>
-    </linearGradient>
-    <filter id="softShadow" x="-30%" y="-30%" width="160%" height="170%">
-      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#17221E" flood-opacity="0.18"/>
-    </filter>
-    <filter id="innerGlow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="18" result="blur"/>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(128 108) rotate(44) scale(250)">
+      <stop stop-color="#BFF3E1" stop-opacity="0.78"/>
+      <stop offset="1" stop-color="#BFF3E1" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="18" stdDeviation="20" flood-color="#14201B" flood-opacity="0.15"/>
     </filter>
   </defs>
-
-  <rect width="512" height="512" rx="120" fill="url(#tile)"/>
-  <circle cx="142" cy="108" r="118" fill="#CFF9EB" fill-opacity="0.42" filter="url(#innerGlow)"/>
-  <circle cx="410" cy="410" r="118" fill="#BFF2E1" fill-opacity="0.30" filter="url(#innerGlow)"/>
-
-  <g filter="url(#softShadow)">
-    <rect x="78" y="78" width="356" height="356" rx="98" fill="#FFFFFF" fill-opacity="0.88" stroke="#FFFFFF" stroke-width="2"/>
+  <rect width="512" height="512" rx="118" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="118" fill="url(#glow)"/>
+  <g filter="url(#shadow)">
+    <rect x="92" y="92" width="328" height="328" rx="92" fill="#FFFFFF" fill-opacity="0.9" stroke="#FFFFFF" stroke-width="2"/>
+    <path d="M184 169h100c65 0 104 31 104 82 0 33-18 58-49 72l50 66h-67l-42-56h-34v56h-62V169Zm62 47v72h31c31 0 49-12 49-36s-18-36-49-36h-31Z" fill="#171918"/>
+    <circle cx="361" cy="151" r="14" fill="#21C58C"/>
   </g>
-
-  <g fill="none" stroke="url(#mint)" stroke-width="19" stroke-linecap="round">
-    <path d="M146 194v-38c0-12 10-22 22-22h38"/>
-    <path d="M306 134h38c12 0 22 10 22 22v38"/>
-    <path d="M366 318v38c0 12-10 22-22 22h-38"/>
-    <path d="M206 378h-38c-12 0-22-10-22-22v-38"/>
-  </g>
-
-  <path d="M202 182h76c57 0 93 28 93 74 0 31-17 54-46 66l47 61h-59l-39-52h-20v52h-52V182Zm52 43v65h23c27 0 43-11 43-33 0-21-16-32-43-32h-23Z" fill="#17191B"/>
-
-  <circle cx="367" cy="145" r="17" fill="#22C58B"/>
-  <circle cx="367" cy="145" r="8" fill="#EFFFF8"/>
 </svg>
