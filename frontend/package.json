@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:e2e": "playwright test",
+    "test:e2e:mobile": "playwright test --project=android-pixel --project=narrow-phone"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
@@ -18,5 +20,7 @@
     "react-dom": "latest",
     "lucide-react": "latest"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@playwright/test": "latest"
+  }
 }
