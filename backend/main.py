@@ -5,6 +5,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, File, Header, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from .engine import compare_regulation_versions, evaluate_candidate_generation, evaluate_passport
 from .regulatory import regulatory_profile_for_product
@@ -12,12 +13,13 @@ from .vision import identify_product, vision_configuration
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
+FRONTEND_DIST = ROOT / "frontend" / "dist"
 
-app = FastAPI(title="REGIQ API", version="0.7.0")
+app = FastAPI(title="REGIQ API", version="0.8.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -29,7 +31,7 @@ def load_json(path: Path):
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "name": "REGIQ", "version": "0.7.0"}
+    return {"status": "ok", "name": "REGIQ", "version": "0.8.0"}
 
 
 @app.get("/api/model/provenance")
@@ -38,7 +40,7 @@ def model_provenance():
     return {
         "software": {
             "name": "REGIQ",
-            "version": "0.7.0",
+            "version": "0.8.0",
             "license": "Apache-2.0",
             "repository": "https://github.com/opedoussaut/regiq",
         },
@@ -117,3 +119,9 @@ async def scan_image(
             "message": "REGIQ maps authoritative regulatory sources first. Digital Product Passport discovery is performed only where the applicable regime calls for it.",
         },
     }
+
+
+# In production builds the React app is copied into frontend/dist.
+# Mounting it last keeps every /api route authoritative while serving REGIQ from one process.
+if FRONTEND_DIST.exists():
+    app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")
