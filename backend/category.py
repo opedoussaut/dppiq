@@ -8,6 +8,12 @@ CATEGORY_KEYWORDS: list[tuple[str, tuple[str, ...]]] = [
     ("smartphone", ("smartphone", "mobile phone", "cell phone", "iphone", "android phone")),
     ("laptop", ("laptop", "notebook computer", "notebook pc", "macbook")),
     ("wireless_headphones", ("wireless headphones", "bluetooth headphones", "headset", "earbuds", "airpods")),
+    ("server", ("rack server", "blade server", "enterprise server", "computer server", "server chassis", "poweredge", "proliant", "thinksystem")),
+    ("data_storage_system", ("storage array", "data storage system", "san array", "nas appliance", "storage server")),
+    ("ups", ("uninterruptible power supply", "ups system", "ups battery backup")),
+    ("sli_battery", ("car battery", "automotive battery", "starter battery", "starting battery", "sli battery", "12v lead acid", "12 v lead acid")),
+    ("battery_ev", ("ev battery", "electric vehicle battery", "traction battery", "vehicle traction battery", "high voltage battery pack")),
+    ("battery_industrial_gt_2kwh", ("stationary battery", "industrial battery", "energy storage battery", "battery energy storage", "bess battery")),
     ("power_bank", ("power bank", "portable charger", "battery pack")),
     ("household_battery", ("aa battery", "aaa battery", "button cell", "coin cell", "household battery", "portable battery")),
     ("led_lamp", ("led lamp", "led bulb", "light bulb", "led light", "lamp bulb")),
@@ -19,7 +25,8 @@ CATEGORY_KEYWORDS: list[tuple[str, tuple[str, ...]]] = [
 EXPLICIT_CATEGORIES = {
     "plastic_beverage_bottle", "smartphone", "laptop", "wireless_headphones", "power_bank",
     "household_battery", "led_lamp", "power_tool", "textile_garment", "electronic_toy",
-    "battery_ev", "battery_lmt", "battery_industrial_gt_2kwh",
+    "battery_ev", "battery_lmt", "battery_industrial_gt_2kwh", "sli_battery",
+    "server", "data_storage_system", "ups",
 }
 
 
