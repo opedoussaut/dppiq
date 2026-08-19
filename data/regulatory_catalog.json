@@ -1,0 +1,203 @@
+{
+  "catalog_version": "2026-08-19",
+  "jurisdiction": "European Union",
+  "verified_at": "2026-08-19",
+  "method": "Curated from official EUR-Lex legal acts. Applicability remains product-specific and may depend on specifications, intended use, dates, exemptions and Member State implementation.",
+  "acts": {
+    "ppwr-2025-40": {
+      "title": "Packaging and Packaging Waste Regulation (PPWR)",
+      "legal_basis": "Regulation (EU) 2025/40",
+      "classification": "EU_REGULATION",
+      "source_url": "https://eur-lex.europa.eu/eli/reg/2025/40/oj",
+      "source_type": "official_eur_lex",
+      "status": "in_force",
+      "summary": "EU framework for packaging sustainability, recyclability, recycled content, labelling and packaging waste management."
+    },
+    "sup-2019-904": {
+      "title": "Single-Use Plastics Directive",
+      "legal_basis": "Directive (EU) 2019/904",
+      "classification": "EU_DIRECTIVE",
+      "source_url": "https://eur-lex.europa.eu/eli/dir/2019/904/oj",
+      "source_type": "official_eur_lex",
+      "status": "in_force",
+      "summary": "Rules for specified single-use plastic products including beverage bottles, attached caps and recycled-content targets."
+    },
+    "fcm-10-2011": {
+      "title": "Plastic food-contact materials",
+      "legal_basis": "Commission Regulation (EU) No 10/2011",
+      "classification": "EU_REGULATION",
+      "source_url": "https://eur-lex.europa.eu/eli/reg/2011/10/oj",
+      "source_type": "official_eur_lex",
+      "status": "in_force",
+      "summary": "Composition, migration and compliance requirements for plastic materials intended to contact food."
+    },
+    "fcm-1935-2004": {
+      "title": "Food-contact materials framework",
+      "legal_basis": "Regulation (EC) No 1935/2004",
+      "classification": "EU_REGULATION",
+      "source_url": "https://eur-lex.europa.eu/eli/reg/2004/1935/oj",
+      "source_type": "official_eur_lex",
+      "status": "in_force",
+      "summary": "General EU framework for materials and articles intended to come into contact with food."
+    },
+    "espr-2024-1781": {
+      "title": "Ecodesign for Sustainable Products Regulation (ESPR)",
+      "legal_basis": "Regulation (EU) 2024/1781",
+      "classification": "EU_REGULATION",
+      "source_url": "https://eur-lex.europa.eu/eli/reg/2024/1781/oj",
+      "source_type": "official_eur_lex",
+      "status": "in_force",
+      "summary": "Horizontal ecodesign framework enabling product-specific requirements and Digital Product Passports through delegated acts."
+    },
+    "battery-2023-1542": {
+      "title": "EU Batteries Regulation",
+      "legal_basis": "Regulation (EU) 2023/1542",
+      "classification": "EU_REGULATION",
+      "source_url": "https://eur-lex.europa.eu/eli/reg/2023/1542/oj",
+      "source_type": "official_eur_lex",
+      "status": "in_force",
+      "summary": "Lifecycle rules for batteries including sustainability, labelling, removability, due diligence and battery passports for specified categories from 18 February 2027."
+    },
+    "rohs-2011-65": {
+      "title": "Restriction of Hazardous Substances (RoHS)",
+      "legal_basis": "Directive 2011/65/EU",
+      "classification": "EU_DIRECTIVE",
+      "source_url": "https://eur-lex.europa.eu/eli/dir/2011/65/oj",
+      "source_type": "official_eur_lex",
+      "status": "in_force",
+      "summary": "Restricts specified hazardous substances in electrical and electronic equipment, subject to scope and exemptions."
+    },
+    "weee-2012-19": {
+      "title": "Waste Electrical and Electronic Equipment (WEEE)",
+      "legal_basis": "Directive 2012/19/EU",
+      "classification": "EU_DIRECTIVE",
+      "source_url": "https://eur-lex.europa.eu/eli/dir/2012/19/oj",
+      "source_type": "official_eur_lex",
+      "status": "in_force",
+      "summary": "Collection, treatment, recovery, producer-responsibility and information requirements for electrical and electronic equipment."
+    },
+    "red-2014-53": {
+      "title": "Radio Equipment Directive (RED)",
+      "legal_basis": "Directive 2014/53/EU",
+      "classification": "EU_DIRECTIVE",
+      "source_url": "https://eur-lex.europa.eu/eli/dir/2014/53/oj",
+      "source_type": "official_eur_lex",
+      "status": "in_force",
+      "summary": "Safety, electromagnetic compatibility, radio-spectrum and other essential requirements for radio equipment."
+    },
+    "common-charger-2022-2380": {
+      "title": "Common Charger Directive",
+      "legal_basis": "Directive (EU) 2022/2380 amending Directive 2014/53/EU",
+      "classification": "EU_DIRECTIVE",
+      "source_url": "https://eur-lex.europa.eu/eli/dir/2022/2380/oj",
+      "source_type": "official_eur_lex",
+      "status": "in_force",
+      "summary": "USB-C and charging-information requirements for covered rechargeable radio equipment; applies to laptops from 28 April 2026 and to other listed categories from 28 December 2024."
+    },
+    "smartphone-ecodesign-2023-1670": {
+      "title": "Ecodesign requirements for smartphones and slate tablets",
+      "legal_basis": "Commission Regulation (EU) 2023/1670",
+      "classification": "EU_REGULATION",
+      "source_url": "https://eur-lex.europa.eu/eli/reg/2023/1670/oj",
+      "source_type": "official_eur_lex",
+      "status": "in_force",
+      "summary": "Product-specific durability, repairability, battery, software-update and resource-efficiency requirements for smartphones and specified tablets."
+    },
+    "light-ecodesign-2019-2020": {
+      "title": "Ecodesign requirements for light sources",
+      "legal_basis": "Commission Regulation (EU) 2019/2020",
+      "classification": "EU_REGULATION",
+      "source_url": "https://eur-lex.europa.eu/eli/reg/2019/2020/oj",
+      "source_type": "official_eur_lex",
+      "status": "in_force",
+      "summary": "Energy-efficiency, functional and information requirements for light sources and separate control gears."
+    },
+    "light-energy-label-2019-2015": {
+      "title": "Energy labelling of light sources",
+      "legal_basis": "Commission Delegated Regulation (EU) 2019/2015",
+      "classification": "EU_REGULATION",
+      "source_url": "https://eur-lex.europa.eu/eli/reg_del/2019/2015/oj",
+      "source_type": "official_eur_lex",
+      "status": "in_force",
+      "summary": "Energy-label and product-information requirements for light sources."
+    },
+    "textile-1007-2011": {
+      "title": "Textile fibre names and labelling",
+      "legal_basis": "Regulation (EU) No 1007/2011",
+      "classification": "EU_REGULATION",
+      "source_url": "https://eur-lex.europa.eu/eli/reg/2011/1007/oj",
+      "source_type": "official_eur_lex",
+      "status": "in_force",
+      "summary": "Fibre-name, composition labelling and marking requirements for textile products."
+    },
+    "reach-1907-2006": {
+      "title": "REACH chemicals regulation",
+      "legal_basis": "Regulation (EC) No 1907/2006",
+      "classification": "EU_REGULATION",
+      "source_url": "https://eur-lex.europa.eu/eli/reg/2006/1907/oj",
+      "source_type": "official_eur_lex",
+      "status": "in_force",
+      "summary": "Horizontal EU chemicals framework including restrictions and duties concerning substances in articles."
+    },
+    "gpsr-2023-988": {
+      "title": "General Product Safety Regulation (GPSR)",
+      "legal_basis": "Regulation (EU) 2023/988",
+      "classification": "EU_REGULATION",
+      "source_url": "https://eur-lex.europa.eu/eli/reg/2023/988/oj",
+      "source_type": "official_eur_lex",
+      "status": "in_force",
+      "summary": "General safety and traceability framework for consumer products where sector-specific safety law does not fully cover the relevant risk."
+    },
+    "machinery-2006-42": {
+      "title": "Machinery Directive",
+      "legal_basis": "Directive 2006/42/EC",
+      "classification": "EU_DIRECTIVE",
+      "source_url": "https://eur-lex.europa.eu/eli/dir/2006/42/oj",
+      "source_type": "official_eur_lex",
+      "status": "transitioning",
+      "summary": "Current machinery framework during the transition to Regulation (EU) 2023/1230."
+    },
+    "machinery-2023-1230": {
+      "title": "Machinery Regulation",
+      "legal_basis": "Regulation (EU) 2023/1230",
+      "classification": "EU_REGULATION",
+      "source_url": "https://eur-lex.europa.eu/eli/reg/2023/1230/oj",
+      "source_type": "official_eur_lex",
+      "status": "upcoming",
+      "summary": "New machinery framework applying from January 2027, replacing Directive 2006/42/EC subject to transitional provisions."
+    },
+    "toy-2009-48": {
+      "title": "Toy Safety Directive",
+      "legal_basis": "Directive 2009/48/EC",
+      "classification": "EU_DIRECTIVE",
+      "source_url": "https://eur-lex.europa.eu/eli/dir/2009/48/oj",
+      "source_type": "official_eur_lex",
+      "status": "transitioning",
+      "summary": "Current toy-safety framework during the transition to Regulation (EU) 2025/2509."
+    },
+    "toy-2025-2509": {
+      "title": "Toy Safety Regulation",
+      "legal_basis": "Regulation (EU) 2025/2509",
+      "classification": "EU_REGULATION",
+      "source_url": "https://eur-lex.europa.eu/eli/reg/2025/2509/oj",
+      "source_type": "official_eur_lex",
+      "status": "upcoming",
+      "summary": "New toy-safety regulation applying from 1 August 2030, including technical requirements for a Digital Product Passport."
+    }
+  },
+  "product_families": {
+    "plastic_beverage_bottle": ["ppwr-2025-40", "sup-2019-904", "fcm-10-2011", "fcm-1935-2004", "espr-2024-1781"],
+    "smartphone": ["smartphone-ecodesign-2023-1670", "red-2014-53", "common-charger-2022-2380", "rohs-2011-65", "weee-2012-19", "battery-2023-1542", "espr-2024-1781"],
+    "laptop": ["common-charger-2022-2380", "rohs-2011-65", "weee-2012-19", "battery-2023-1542", "red-2014-53", "espr-2024-1781"],
+    "wireless_headphones": ["red-2014-53", "common-charger-2022-2380", "rohs-2011-65", "weee-2012-19", "battery-2023-1542"],
+    "power_bank": ["battery-2023-1542", "rohs-2011-65", "weee-2012-19", "gpsr-2023-988"],
+    "household_battery": ["battery-2023-1542"],
+    "led_lamp": ["light-ecodesign-2019-2020", "light-energy-label-2019-2015", "rohs-2011-65", "weee-2012-19"],
+    "power_tool": ["machinery-2006-42", "machinery-2023-1230", "rohs-2011-65", "weee-2012-19", "battery-2023-1542"],
+    "textile_garment": ["textile-1007-2011", "reach-1907-2006", "gpsr-2023-988", "espr-2024-1781"],
+    "electronic_toy": ["toy-2009-48", "toy-2025-2509", "rohs-2011-65", "weee-2012-19", "battery-2023-1542", "red-2014-53"],
+    "battery_ev": ["battery-2023-1542"],
+    "battery_lmt": ["battery-2023-1542"],
+    "battery_industrial_gt_2kwh": ["battery-2023-1542"]
+  }
+}
