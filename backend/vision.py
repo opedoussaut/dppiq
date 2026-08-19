@@ -24,15 +24,15 @@ MODEL_SOURCE_OVERRIDE = os.getenv("REGIQ_MODEL_SOURCE_URL", "").strip()
 VISION_PROMPT = """You are the product-identification component of REGIQ, an open-source product regulation intelligence system.
 Identify the primary physical product in this image. Return ONLY valid JSON with these keys:
 {
-  "product_type": "short generic product type, e.g. plastic beverage bottle",
-  "category": "one of: plastic_beverage_bottle, packaging, consumer_electronics, household_appliance, power_tool, textile, footwear, tyre, battery_ev, battery_lmt, battery_industrial_gt_2kwh, battery_other, furniture, industrial_equipment, other",
+  "product_type": "short generic product type, e.g. smartphone or plastic beverage bottle",
+  "category": "one of: plastic_beverage_bottle, smartphone, laptop, wireless_headphones, power_bank, household_battery, led_lamp, power_tool, textile_garment, electronic_toy, battery_ev, battery_lmt, battery_industrial_gt_2kwh, packaging, consumer_electronics, household_appliance, textile, footwear, tyre, battery_other, furniture, industrial_equipment, other",
   "brand": "brand if clearly visible, otherwise null",
   "model": "model or variant if clearly visible, otherwise null",
   "visible_text": ["important text seen on labels"],
   "confidence": 0.0,
   "reasoning_summary": "one short factual sentence about visible evidence"
 }
-Do not infer legal obligations. Do not invent a brand or model. Confidence must be between 0 and 1.
+Use the most specific category you can support from visible evidence. Do not infer legal obligations. Do not invent a brand or model. Confidence must be between 0 and 1.
 """
 
 
