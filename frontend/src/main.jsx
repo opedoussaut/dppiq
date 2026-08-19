@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import './uploadCompat'
 import App from './AppV2'
 import './regiq-os.css'
+import './mobile.css'
 
 // AppV2 uses a visually styled upload control inside the dark scan panel.
 // Explicitly delegate clicks to its file input for reliable desktop/mobile behavior.
