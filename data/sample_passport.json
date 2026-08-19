@@ -1,0 +1,30 @@
+{
+  "identity": {
+    "product_id": "DPPIQ-SENSOR-001",
+    "name": "Open Environmental Sensor",
+    "manufacturer": "Open Demo Industries",
+    "model": "OE-100"
+  },
+  "materials": [
+    {"name": "Aluminium", "mass_g": 180, "recycled_content_percent": 60},
+    {"name": "FR-4 PCB", "mass_g": 95, "recycled_content_percent": 5},
+    {"name": "Copper", "mass_g": 42, "recycled_content_percent": 35}
+  ],
+  "repair": {
+    "spare_parts_available_years": 7,
+    "repair_manual_url": "https://example.org/open-sensor/repair"
+  },
+  "circularity": {
+    "recycled_content_percent": 34,
+    "disassembly_instructions": "Remove four screws, disconnect the communication board, then separate PCB and aluminium enclosure."
+  },
+  "environment": {
+    "product_carbon_footprint_kg_co2e": 12.4,
+    "method": "demo screening model"
+  },
+  "evidence": [
+    {"type": "supplier_declaration", "subject": "aluminium recycled content", "status": "available"},
+    {"type": "bill_of_materials", "subject": "material composition", "status": "available"},
+    {"type": "repair_manual", "subject": "repair and disassembly", "status": "available"}
+  ]
+}
