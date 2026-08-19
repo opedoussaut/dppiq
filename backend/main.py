@@ -3,15 +3,16 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from .engine import compare_regulation_versions, evaluate_candidate_generation, evaluate_passport
+from .vision import identify_product, regulatory_status_for_category, vision_configuration
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
 
-app = FastAPI(title="DPPIQ API", version="0.2.0")
+app = FastAPI(title="DPPIQ API", version="0.3.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -27,7 +28,7 @@ def load_json(path: Path):
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "name": "DPPIQ", "version": "0.2.0"}
+    return {"status": "ok", "name": "DPPIQ", "version": "0.3.0"}
 
 
 @app.get("/api/passport")
@@ -59,3 +60,33 @@ def regulation_change():
 def evolution():
     candidate = load_json(DATA / "evolution_candidate.json")
     return evaluate_candidate_generation(candidate)
+
+
+@app.get("/api/scan/config")
+def scan_config():
+    return {
+        "vision": vision_configuration(),
+        "camera_capture": True,
+        "barcode_qr": True,
+        "principle": "Vision identifies the product; the regulatory engine determines legal status.",
+    }
+
+
+@app.post("/api/scan/image")
+async def scan_image(file: UploadFile = File(...)):
+    image_bytes = await file.read()
+    identification = await identify_product(image_bytes)
+
+    category = identification.get("category") if identification.get("status") == "identified" else None
+    regulatory = regulatory_status_for_category(category)
+
+    return {
+        "filename": file.filename,
+        "content_type": file.content_type,
+        "identification": identification,
+        "regulatory": regulatory,
+        "public_dpp": {
+            "status": "not_searched_yet",
+            "message": "Public DPP discovery is the next pipeline stage; no passport URL is invented when none has been verified.",
+        },
+    }
