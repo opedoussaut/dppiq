@@ -9,47 +9,17 @@ class RequirementResult:
     requirement_id: str
     title: str
     status: str
-    score: int
-    field: str
+    score: int | None
+    field: str | None
     rationale: str
     source: str
+    article: str | None
+    classification: str
 
 
-REQUIREMENTS = [
-    {
-        "id": "ESPR-DPP-IDENTITY",
-        "title": "Unique product identity",
-        "field": "identity.product_id",
-        "source": "ESPR framework (demo requirement)",
-    },
-    {
-        "id": "ESPR-DPP-MATERIALS",
-        "title": "Material composition",
-        "field": "materials",
-        "source": "ESPR framework (demo requirement)",
-    },
-    {
-        "id": "DPP-REPAIR-SPARES",
-        "title": "Spare-parts information",
-        "field": "repair.spare_parts_available_years",
-        "source": "DPPIQ future-scenario dataset",
-    },
-    {
-        "id": "DPP-DISASSEMBLY",
-        "title": "Disassembly guidance",
-        "field": "circularity.disassembly_instructions",
-        "source": "DPPIQ future-scenario dataset",
-    },
-    {
-        "id": "DPP-RECYCLED-CONTENT",
-        "title": "Recycled-content evidence",
-        "field": "circularity.recycled_content_percent",
-        "source": "DPPIQ future-scenario dataset",
-    },
-]
-
-
-def _read_path(payload: dict[str, Any], path: str) -> Any:
+def _read_path(payload: dict[str, Any], path: str | None) -> Any:
+    if not path:
+        return None
     value: Any = payload
     for part in path.split("."):
         if not isinstance(value, dict) or part not in value:
@@ -58,30 +28,48 @@ def _read_path(payload: dict[str, Any], path: str) -> Any:
     return value
 
 
-def evaluate_passport(passport: dict[str, Any]) -> dict[str, Any]:
-    results: list[RequirementResult] = []
-    for req in REQUIREMENTS:
-        value = _read_path(passport, req["field"])
-        missing = value is None or value == "" or value == []
+def _evaluate_requirement(passport: dict[str, Any], req: dict[str, Any]) -> RequirementResult:
+    classification = req.get("classification", "EU_FRAMEWORK")
+    mode = req.get("evaluation", "presence")
+    field = req.get("field")
+    source = f"Regulation (EU) 2024/1781, Article {req.get('article')}" if req.get("article") else "Regulation (EU) 2024/1781"
+
+    if classification == "PRODUCT_SPECIFIC" or mode == "applicability":
+        identified = passport.get("legal_applicability", {}).get("product_specific_dpp_obligation_identified", False)
+        if identified:
+            status, score = "applicable", None
+            rationale = "A product-specific legal basis has been identified and must be evaluated separately."
+        else:
+            status, score = "not_asserted", None
+            rationale = "No applicable product-specific delegated or sector act is asserted for this demo product. DPPIQ does not turn the horizontal ESPR framework into a product-specific legal obligation."
+    else:
+        value = _read_path(passport, field)
+        missing = value is None or value == "" or value == [] or value is False
         if missing:
             status, score = "gap", 0
-            rationale = f"No usable value found at {req['field']}."
+            rationale = f"No supporting product/system value found at {field}."
         else:
             status, score = "ready", 100
-            rationale = f"Evidence is present at {req['field']}."
-        results.append(
-            RequirementResult(
-                requirement_id=req["id"],
-                title=req["title"],
-                status=status,
-                score=score,
-                field=req["field"],
-                rationale=rationale,
-                source=req["source"],
-            )
-        )
+            rationale = f"Supporting product/system value is present at {field}. This is a readiness check, not a legal compliance opinion."
 
-    readiness = round(sum(r.score for r in results) / len(results)) if results else 0
+    return RequirementResult(
+        requirement_id=req["id"],
+        title=req["title"],
+        status=status,
+        score=score,
+        field=field,
+        rationale=rationale,
+        source=source,
+        article=req.get("article"),
+        classification=classification,
+    )
+
+
+def evaluate_passport(passport: dict[str, Any], regulatory_reference: dict[str, Any]) -> dict[str, Any]:
+    results = [_evaluate_requirement(passport, req) for req in regulatory_reference.get("provisions", [])]
+    scored = [r.score for r in results if r.score is not None]
+    readiness = round(sum(scored) / len(scored)) if scored else 0
+
     evidence = passport.get("evidence", [])
     evidence_quality = min(100, 40 + len(evidence) * 15)
     circularity = passport.get("circularity", {})
@@ -94,14 +82,30 @@ def evaluate_passport(passport: dict[str, Any]) -> dict[str, Any]:
         )
     )
 
+    # DPPIQ intelligence score: explicitly not an EU regulatory score.
+    overall_iq = round((readiness * 0.5) + (evidence_quality * 0.25) + (circularity_score * 0.25))
+
     return {
         "product_id": passport.get("identity", {}).get("product_id", "unknown"),
+        "framework_readiness": readiness,
         "regulatory_readiness": readiness,
         "evidence_quality": evidence_quality,
         "circularity_readiness": circularity_score,
-        "overall_iq": round((readiness * 0.5) + (evidence_quality * 0.25) + (circularity_score * 0.25)),
+        "overall_iq": overall_iq,
+        "score_classification": "DPPIQ_INTELLIGENCE",
+        "legal_conclusion": "none",
         "requirements": [r.__dict__ for r in results],
-        "gaps": [r.__dict__ for r in results if r.status != "ready"],
+        "gaps": [r.__dict__ for r in results if r.status == "gap"],
+        "applicability": passport.get("legal_applicability", {}),
+        "regulatory_reference": {
+            "reference_id": regulatory_reference.get("reference_id"),
+            "legal_basis": regulatory_reference.get("legal_basis"),
+            "status": regulatory_reference.get("status"),
+            "last_verified_by_dppiq": regulatory_reference.get("last_verified_by_dppiq"),
+            "authoritative_source": regulatory_reference.get("authoritative_source"),
+            "commission_reference": regulatory_reference.get("commission_reference"),
+            "scope_note": regulatory_reference.get("scope_note"),
+        },
     }
 
 
@@ -123,6 +127,8 @@ def compare_regulation_versions(old: dict[str, Any], new: dict[str, Any]) -> dic
         "removed": removed,
         "changed": changed,
         "summary": f"{len(added)} added, {len(changed)} changed, {len(removed)} removed",
+        "classification": "DPPIQ_SIMULATION",
+        "note": "Illustrative version-comparison dataset. It is not the authoritative ESPR legal reference used by /api/regulation/reference.",
     }
 
 
@@ -147,6 +153,7 @@ def evaluate_candidate_generation(candidate: dict[str, Any]) -> dict[str, Any]:
         "candidate": candidate.get("candidate", "unknown"),
         "decision": "promote" if promoted else "reject",
         "delta": delta,
+        "classification": "DPPIQ_INTELLIGENCE",
         "reason": "Candidate improves mapping and evidence precision while reducing false-compliance rate."
         if promoted
         else "Candidate did not improve all promotion guardrails.",
