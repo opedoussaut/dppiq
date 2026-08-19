@@ -12,7 +12,7 @@ from .vision import identify_product, regulatory_status_for_category, vision_con
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
 
-app = FastAPI(title="DPPIQ API", version="0.4.1")
+app = FastAPI(title="REGIQ API", version="0.5.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -28,7 +28,7 @@ def load_json(path: Path):
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "name": "DPPIQ", "version": "0.4.1"}
+    return {"status": "ok", "name": "REGIQ", "version": "0.5.0"}
 
 
 @app.get("/api/passport")
@@ -68,7 +68,7 @@ def scan_config():
         "vision": vision_configuration(),
         "camera_capture": True,
         "barcode_qr": True,
-        "principle": "Vision identifies the product; the regulatory engine determines legal status.",
+        "principle": "Vision identifies the product; the regulatory engine determines applicable legal and standards context.",
     }
 
 
@@ -89,9 +89,9 @@ async def scan_image(file: UploadFile = File(...)):
         "public_dpp": {
             "status": "not_searched_yet" if category else "waiting_for_identification",
             "message": (
-                "Public DPP discovery is the next pipeline stage; no passport URL is invented when none has been verified."
+                "Digital Product Passport discovery remains one REGIQ module; no passport URL is invented when none has been verified."
                 if category
-                else "DPPIQ will not search for a product passport until the product has been identified."
+                else "REGIQ waits for product identification before searching for applicable regulatory evidence or passports."
             ),
         },
     }
