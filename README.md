@@ -1,54 +1,42 @@
 # REGIQ
 
-**Regulation Intelligence** — an open-source, self-evolving agentic platform that identifies physical products and explains the regulations, standards, product-passport obligations, evidence requirements and upcoming regulatory changes that apply to them.
+**Regulation Intelligence** — an open-source, mobile-first "Shazam for product regulation".
 
-REGIQ is a **"Shazam for product regulation"**. Point a phone or laptop camera at a physical product, identify it from visual evidence, visible text and validated identifiers, then independently map it to potentially applicable regulatory regimes and authoritative sources.
+Point a phone or laptop camera at a physical product. REGIQ identifies it, maps potentially applicable regulatory regimes, and explains the result with traceable public sources. Digital Product Passports are one possible regulatory dimension, not the boundary of the product.
 
-Digital Product Passports remain one REGIQ module, not the boundary of the product.
+## What works today
 
-## Share-ready status
+- live camera capture on laptop and mobile;
+- photo upload and basic barcode signal validation;
+- pluggable open-weight visual identification through Hugging Face Inference Providers or Ollama;
+- multi-regime EU regulatory mapping;
+- product-specific Intelligence view based on the latest scan;
+- model/provider/license provenance where available;
+- local browser scan history;
+- optional Bring Your Own Hugging Face token flow;
+- Progressive Web App support for home-screen installation;
+- one-container Docker deployment;
+- Apache-2.0 licensing for REGIQ itself.
 
-REGIQ is licensed under **Apache License 2.0** and is designed for both hosted demos and self-hosted use.
+REGIQ is a prototype and does not provide legal advice. Regulatory applicability can depend on exact specifications, intended use, market, dates and Member State implementation.
 
-- Public repository: `opedoussaut/regiq`
-- Software license: Apache-2.0
-- Secrets are excluded through `.gitignore`
-- Safe configuration template: `.env.example`
-- Deployment guide: `docs/DEPLOYMENT.md`
-- Pluggable vision providers: Hugging Face Inference Providers or Ollama
-- Optional Bring Your Own Hugging Face token API flow
-- Successful recognitions expose the exact model/provider used and best-effort model provenance
+## Fastest way to try it
 
-> The Apache-2.0 license covers REGIQ source code. Third-party model weights, datasets, libraries and regulatory source material retain their own licenses and terms.
+### Codespaces / local development
 
-## Quick start
+Backend:
 
 ```bash
-git clone https://github.com/opedoussaut/regiq.git
-cd regiq
-
-python -m venv .venv
-source .venv/bin/activate
 pip install -r backend/requirements.txt
-```
-
-Configure remote vision with your own Hugging Face token:
-
-```bash
 export REGIQ_VISION_ENABLED=true
 export REGIQ_VISION_PROVIDER=huggingface
 export REGIQ_HF_MODEL=auto
-export HF_TOKEN='hf_your_token_here'
 export REGIQ_ALLOW_BYO_HF_TOKEN=true
-```
-
-Start the backend:
-
-```bash
+# Optional: export HF_TOKEN=hf_... if the host pays for inference
 uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Start the frontend in another terminal:
+Frontend, in another terminal:
 
 ```bash
 cd frontend
@@ -56,58 +44,54 @@ npm install
 npm run dev -- --host 0.0.0.0
 ```
 
-See `docs/DEPLOYMENT.md` for public hosting, Codespaces, local Ollama and security guidance.
+Open port 5173. A Codespaces forwarded HTTPS URL can also be opened from a phone, subject to the port visibility/authentication settings.
 
-## Bring your own Hugging Face token
-
-REGIQ can accept a Hugging Face token for one scan without storing it server-side. Enable the feature on the backend:
+### One-command Docker deployment
 
 ```bash
-export REGIQ_ALLOW_BYO_HF_TOKEN=true
+git clone https://github.com/opedoussaut/regiq.git
+cd regiq
+docker compose up --build
 ```
 
-Then an API client can call:
+Then open `http://localhost:8000`.
+
+To use a server-owned Hugging Face token:
 
 ```bash
-curl -X POST http://127.0.0.1:8000/api/scan/image \
-  -H 'X-REGIQ-HF-Token: hf_your_token_here' \
-  -F 'file=@product.jpg'
+export HF_TOKEN=hf_your_token_here
+docker compose up --build
 ```
 
-The request token overrides the server `HF_TOKEN` only for that request. REGIQ does not return the token, write it to disk or include it in model provenance.
+Without a server token, users can enter their own token in **Setup** when `REGIQ_ALLOW_BYO_HF_TOKEN=true`.
 
-Only send a BYO token to a backend you trust. For maximum privacy, self-host REGIQ.
+## Mobile use
 
-## Model provenance
+REGIQ is a Progressive Web App.
 
-REGIQ keeps the software, model and regulatory-source layers separate.
+- **iPhone/iPad:** open the HTTPS deployment in Safari → Share → **Add to Home Screen**.
+- **Android/Chrome:** open the HTTPS deployment → browser menu → **Install app** / **Add to Home screen**.
+- The live camera requests the environment-facing camera where supported.
+- The photo input uses `capture="environment"` as a mobile fallback.
+- Recent scan metadata and regulatory results are stored locally in the browser.
+- The Hugging Face token entered in Setup is kept only in page memory and is not persisted by the frontend.
 
-`GET /api/model/provenance` reports:
+A public deployment should use HTTPS for reliable camera and PWA behavior.
 
-- REGIQ software version and Apache-2.0 license;
-- configured vision provider;
-- configured or automatic model selection;
-- whether BYO token support is enabled.
+## Easy user setup
 
-Each successful Hugging Face recognition also reports best-effort runtime provenance for the exact model selected, including:
+The REGIQ **Setup** screen shows:
 
-- provider;
-- model repository/model ID;
-- source URL;
-- model revision when available;
-- model-card license when available;
-- inference pipeline tag.
+- current vision provider and model configuration;
+- whether the deployment has a server token;
+- whether Bring Your Own Hugging Face token is enabled;
+- a session-only token input when BYO is enabled;
+- software/model provenance;
+- mobile installation guidance.
 
-If a deployment pins a model and its licensing has been independently verified, provenance can be explicitly declared with:
+The BYO token is sent as `X-REGIQ-HF-Token` only with a scan request. REGIQ does not intentionally write it to local storage or scan history.
 
-```bash
-export REGIQ_MODEL_LICENSE=apache-2.0
-export REGIQ_MODEL_SOURCE_URL='https://huggingface.co/<org>/<model>'
-```
-
-Do not assume that a model is Apache-2.0 merely because REGIQ is Apache-2.0.
-
-## Core architecture
+## Architecture
 
 ```text
 Camera / photo / identifier
@@ -118,68 +102,87 @@ Camera / photo / identifier
           v
  Regulatory classification
           |
-    +-----+----------------------+------------------+
-    |                            |                  |
-    v                            v                  v
-Packaging                   Batteries          ESPR / DPP
-    |                            |                  |
-    +-------------+--------------+------------------+
-                  v
-         Regulatory evidence
-                  |
-                  v
-      Product intelligence dossier
-                  |
-                  v
-          Evaluator / evolution
+    +-----+----------+----------+---------+
+    |                |          |         |
+    v                v          v         v
+Packaging        Batteries    ESPR     Other regimes
+    |                |          |         |
+    +----------------+----------+---------+
+                     v
+            Regulatory evidence
+                     |
+                     v
+          What applies / what next
 ```
 
-REGIQ deliberately separates probabilistic product recognition from regulatory interpretation.
+Recognition is probabilistic and replaceable. REGIQ keeps it separate from regulatory reasoning.
 
-## Self-improving workflow
+## Model provenance
 
-REGIQ treats regulation and agent performance as changing environments. Candidate improvements should:
+REGIQ itself is licensed under Apache-2.0. Model weights are separate works and retain their own licenses.
 
-1. detect and version authoritative regulatory changes;
-2. translate them into machine-readable candidate requirements;
-3. map product categories to potentially applicable regimes;
-4. preserve source provenance and uncertainty;
-5. benchmark candidate strategies against historical cases;
-6. reject regressions and false-compliance increases;
-7. promote new strategies only when objective evaluation improves.
+Successful Hugging Face scans return best-effort provenance including exact model identifier, provider, source URL, revision where available, and declared model-card license where available.
 
-The goal is **auditable self-improvement**, not uncontrolled self-modifying code.
+Useful endpoints:
+
+```text
+GET /api/health
+GET /api/scan/config
+GET /api/model/provenance
+POST /api/scan/image
+```
+
+## Environment variables
+
+See `.env.example`.
+
+```bash
+REGIQ_VISION_ENABLED=true
+REGIQ_VISION_PROVIDER=huggingface
+REGIQ_HF_MODEL=auto
+REGIQ_ALLOW_BYO_HF_TOKEN=true
+HF_TOKEN=
+```
+
+For Ollama:
+
+```bash
+REGIQ_VISION_PROVIDER=ollama
+REGIQ_VISION_MODEL=qwen3-vl:2b
+OLLAMA_BASE_URL=http://127.0.0.1:11434
+```
 
 ## Repository layout
 
-- `backend/` — FastAPI API, recognition gateway and regulatory intelligence
-- `frontend/` — React/Vite scan and intelligence experience
-- `data/` — public/sample products, passports and regulation snapshots
-- `docs/` — deployment, architecture and methodology
-- `agents/` — versioned agent specifications when present
-- `benchmarks/` — deterministic evaluation cases when present
-- `evolution/` — promoted/rejected generations and rationale when present
+- `backend/` — FastAPI, recognition gateway and regulatory intelligence
+- `frontend/` — React/Vite mobile-first PWA
+- `data/` — public/sample products and regulatory snapshots
+- `docs/` — deployment and methodology
+- `Dockerfile` — production frontend + backend image
+- `compose.yaml` — one-command startup
+- `.env.example` — safe configuration template
+- `LICENSE` — Apache License 2.0
 
-## Security and secret hygiene
+## Self-improving workflow
 
-Never commit credentials. `.gitignore` excludes `.env`, `.env.*`, private keys, local virtual environments, Node modules and build outputs. `.env.example` contains placeholders only.
+REGIQ treats regulation and agent performance as changing environments. Candidate improvements should detect and version regulatory changes, preserve source provenance, benchmark strategies against historical cases, reject regressions, and promote changes only when objective evaluation improves.
 
-For GitHub Codespaces, prefer Codespaces secrets or shell environment variables. For production, use the deployment platform's secret manager.
+The goal is **auditable self-improvement**, not uncontrolled self-modifying code.
 
 ## Principles
 
-- **Authoritative-source first** — legal conclusions must be traceable to public regulatory sources.
-- **Source-aware** — source, extraction, interpretation and inferred conclusions remain separate layers.
-- **Auditable** — every assessment carries evidence and provenance.
-- **Model-neutral** — model providers can be replaced without changing the regulatory domain model.
-- **Benchmark-gated evolution** — no strategy is promoted merely because an LLM claims it is better.
-- **Human-readable** — the UI explains why REGIQ reached a conclusion.
-- **No false certainty** — unidentified products and uncertain applicability remain explicitly uncertain.
+- **Authoritative-source first** — legal conclusions remain traceable.
+- **No false certainty** — uncertainty is explicit.
+- **Model-neutral** — REGIQ is not tied to one provider.
+- **Source-aware** — source, extraction, interpretation and conclusion remain separate.
+- **Auditable** — scans expose evidence and provenance.
+- **Public-first** — proprietary enterprise integrations are not required.
+- **Benchmark-gated evolution** — self-improvement must be measurable and reviewable.
 
-## Status
+## Security
 
-Early prototype. Camera capture, remote visual identification, multi-regime regulatory mapping and scan-driven product intelligence work end-to-end. The regulatory knowledge base remains intentionally limited and must continue to expand and be validated against authoritative sources.
+Never commit tokens. Use environment variables, platform secrets, or the optional session-only BYO flow. If a token is ever pasted publicly, revoke it and create a replacement.
 
 ## License
 
-Licensed under the **Apache License, Version 2.0**. See `LICENSE`.
+REGIQ software is licensed under the **Apache License 2.0**. See `LICENSE`.
