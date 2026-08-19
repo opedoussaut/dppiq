@@ -1,40 +1,50 @@
 # REGIQ deployment guide
 
-REGIQ can be shared in two modes:
+REGIQ supports three practical sharing modes:
 
-1. **Hosted demo** — you deploy the frontend and backend and configure a server-side model token.
-2. **Bring your own token (BYO)** — users clone/self-host REGIQ or call the scan API with their own Hugging Face token.
+1. **Hosted demo** — one public HTTPS URL; the host pays for inference.
+2. **Hosted BYO** — one public HTTPS URL; users enter their own Hugging Face token in Setup.
+3. **Self-hosted/private** — users run REGIQ themselves with Hugging Face or Ollama.
 
-REGIQ never requires a token in frontend source code and no secret should ever be committed to GitHub.
+No secret belongs in frontend source code or Git history.
 
-## 1. Quick start in GitHub Codespaces
+## 1. Easiest production deployment: Docker
+
+REGIQ builds the React frontend and FastAPI backend into one image. FastAPI serves the built frontend and all `/api` endpoints from the same origin.
 
 ```bash
 git clone https://github.com/opedoussaut/regiq.git
 cd regiq
-
-python -m venv .venv
-source .venv/bin/activate
-pip install -r backend/requirements.txt
+docker compose up --build
 ```
 
-Configure the backend:
+Open `http://localhost:8000`.
+
+To provide a host-owned Hugging Face token:
 
 ```bash
+export HF_TOKEN=hf_your_token_here
+docker compose up --build
+```
+
+`compose.yaml` enables BYO token support by default, so a deployment can also run without a host token and let trusted users enter their own token in the REGIQ Setup screen.
+
+## 2. GitHub Codespaces development
+
+Backend:
+
+```bash
+pip install -r backend/requirements.txt
 export REGIQ_VISION_ENABLED=true
 export REGIQ_VISION_PROVIDER=huggingface
 export REGIQ_HF_MODEL=auto
-export HF_TOKEN='hf_your_token_here'
 export REGIQ_ALLOW_BYO_HF_TOKEN=true
-```
-
-Start FastAPI:
-
-```bash
+# Optional host credential:
+# export HF_TOKEN=hf_your_token_here
 uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-In a second terminal:
+Frontend, second terminal:
 
 ```bash
 cd frontend
@@ -42,44 +52,54 @@ npm install
 npm run dev -- --host 0.0.0.0
 ```
 
-Open port 5173. Vite proxies `/api` to port 8000.
+Open the forwarded HTTPS URL for port 5173. The same URL can be opened on a phone if the Codespace port visibility and GitHub authentication settings allow it.
 
-## 2. Safe configuration
+## 3. Mobile and PWA deployment
 
-Use `.env.example` as the configuration template. `.env` and `.env.*` are ignored by Git, except `.env.example`.
+For normal mobile use, deploy REGIQ behind HTTPS. Camera APIs and PWA installation work most reliably in a secure context.
 
-Never put any of these in source code:
+### iPhone / iPad
 
-- `HF_TOKEN`
-- provider API keys
-- private endpoint credentials
-- personal access tokens
+1. Open the REGIQ HTTPS URL in Safari.
+2. Tap **Share**.
+3. Choose **Add to Home Screen**.
+4. Launch REGIQ from the new home-screen icon.
 
-For GitHub Codespaces, prefer Codespaces secrets or shell environment variables.
+### Android / Chrome
 
-## 3. Bring your own Hugging Face token
+1. Open the REGIQ HTTPS URL in Chrome.
+2. Use **Install app** or **Add to Home screen** from the browser menu, or use REGIQ's Setup install button when the browser exposes it.
+3. Launch REGIQ like a normal app.
 
-REGIQ supports per-request BYO tokens when:
+The live scan requests the environment-facing camera where supported. The upload fallback uses `capture="environment"` to offer direct camera capture on mobile browsers.
+
+The PWA service worker caches only same-origin GET resources and does not cache `/api` calls.
+
+## 4. Bring Your Own Hugging Face token
+
+Enable the backend feature:
 
 ```bash
 export REGIQ_ALLOW_BYO_HF_TOKEN=true
 ```
 
-A client may then call:
+The REGIQ Setup screen then shows a password-style token input. The frontend keeps this value only in React memory; it is not written to localStorage or scan history.
+
+For direct API clients:
 
 ```bash
-curl -X POST http://127.0.0.1:8000/api/scan/image \
+curl -X POST https://your-regiq.example/api/scan/image \
   -H 'X-REGIQ-HF-Token: hf_your_token_here' \
   -F 'file=@product.jpg'
 ```
 
-The request token overrides the server `HF_TOKEN` for that scan only. REGIQ does not write the token to disk, return it in the response, or store it in application state.
+The token applies to that scan request only and overrides the server `HF_TOKEN` only when BYO support is enabled.
 
-**Trust warning:** only send a BYO token to a REGIQ backend you trust. A backend operator controls the server process and network stack. For maximum privacy, self-host REGIQ and provide your token through your own environment.
+Only send a BYO token to a backend you trust. A backend operator controls the server process and network stack. For maximum privacy, self-host REGIQ.
 
-## 4. Hosted public demo
+## 5. Hosted public demo
 
-For a public demo, the simplest configuration is a server-side token:
+For a frictionless public demo:
 
 ```bash
 REGIQ_VISION_ENABLED=true
@@ -89,11 +109,11 @@ HF_TOKEN=...
 REGIQ_ALLOW_BYO_HF_TOKEN=false
 ```
 
-This avoids asking visitors for credentials. Monitor provider usage and quotas because inference requests are billed or rate-limited according to the configured provider/account.
+Visitors do not need credentials. The host is responsible for provider cost, quotas and abuse controls.
 
-## 5. Local/private inference with Ollama
+For a community/self-funded deployment, omit `HF_TOKEN` and enable BYO.
 
-Users with sufficient hardware can avoid remote image inference:
+## 6. Local/private inference with Ollama
 
 ```bash
 export REGIQ_VISION_ENABLED=true
@@ -102,35 +122,44 @@ export REGIQ_VISION_MODEL=qwen3-vl:2b
 export OLLAMA_BASE_URL=http://127.0.0.1:11434
 ```
 
-Then run Ollama separately and start REGIQ normally.
+Run Ollama separately. Local multimodal inference requires sufficient RAM/GPU resources.
 
-## 6. Model provenance
+## 7. What REGIQ stores in the browser
 
-Every successful recognition result reports the provider and exact model used. Hugging Face results also include best-effort model provenance metadata when available, including model repository URL, revision and declared model-card license.
+- Recent scan **metadata and regulatory result JSON** are stored in localStorage.
+- Captured image object URLs are not persisted across a full page reload.
+- BYO Hugging Face tokens are not stored in localStorage.
+- Clearing History removes REGIQ's saved scan history from that browser.
 
-If a deployment pins a known model, operators can explicitly set:
+## 8. Model provenance
+
+`GET /api/model/provenance` reports the REGIQ software version/license and current vision configuration.
+
+Successful Hugging Face recognition responses include best-effort runtime model provenance such as model ID, source URL, revision and model-card license when available.
+
+A pinned deployment may explicitly declare independently verified provenance:
 
 ```bash
 REGIQ_MODEL_LICENSE=apache-2.0
 REGIQ_MODEL_SOURCE_URL=https://huggingface.co/<org>/<model>
 ```
 
-Do not assume that REGIQ's Apache-2.0 software license applies to model weights. Model licenses remain independent and must be checked before redistributing weights.
+REGIQ's Apache-2.0 license never automatically applies to third-party model weights.
 
-## 7. Production hardening checklist
+## 9. Production hardening checklist
 
-Before exposing REGIQ publicly:
+Before exposing REGIQ broadly:
 
-- run FastAPI behind TLS/HTTPS;
-- restrict CORS to the deployed frontend origin instead of `*`;
-- add request-size limits for uploaded images;
-- add rate limiting and provider quota protection;
-- never log authorization headers or BYO token headers;
-- pin dependencies for reproducible production releases;
-- pin or record model/version provenance;
-- monitor official-source freshness for regulatory data;
-- display that REGIQ provides regulatory intelligence, not legal advice.
+- use TLS/HTTPS;
+- add upload-size limits;
+- add rate limiting and inference quota controls;
+- set explicit allowed origins if frontend/backend are split across origins;
+- never log authorization or BYO token headers;
+- pin deployment dependencies and model/version provenance;
+- monitor official regulatory-source freshness;
+- keep legal uncertainty and the non-legal-advice disclaimer visible;
+- add automated tests for regulatory mappings before expanding coverage.
 
-## 8. License
+## 10. License
 
-REGIQ source code is licensed under Apache License 2.0. Third-party libraries, model weights, datasets and regulatory source material retain their own licenses/terms.
+REGIQ source code is licensed under Apache License 2.0. Third-party libraries, model weights, datasets and regulatory source material retain their own licenses and terms.
