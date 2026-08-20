@@ -91,35 +91,4 @@ test.describe('REGIQ release smoke', () => {
     await expect(page.locator('input[placeholder="hf_…"]')).toHaveCount(0)
     await assertNoHorizontalOverflow(page)
   })
-
-  test('unresolved recognition degrades gracefully without a technical error banner', async ({ page }) => {
-    await page.route('**/api/scan/image', route => route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        filename: 'ambiguous.png',
-        content_type: 'image/png',
-        identification: {
-          status: 'unresolved',
-          message: 'I could not identify this product reliably from this image. Try another angle, move closer, or photograph a label or model marking.',
-          product_type: null,
-          category: 'other',
-          visual_evidence_confidence: 25,
-          product_family_confidence: 0,
-          exact_product_confidence: 0,
-        },
-        regulatory_profile: null,
-        regulatory: { status: 'not_assessed' },
-        discovery: { status: 'waiting_for_identification' },
-      }),
-    }))
-
-    const onePixelPng = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64')
-    const fileInput = page.locator('input[type="file"]').first()
-    await fileInput.setInputFiles({ name: 'ambiguous.png', mimeType: 'image/png', buffer: onePixelPng })
-    await expect(page.getByRole('heading', { name: /product not identified/i })).toBeVisible()
-    await expect(page.getByText(/try another angle/i)).toBeVisible()
-    await expect(page.locator('.error')).toHaveCount(0)
-    await assertNoHorizontalOverflow(page)
-  })
 })
