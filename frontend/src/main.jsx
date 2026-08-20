@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import './uploadCompat'
+import './fastScanClient'
 import App from './AppV2'
 import './regiq-os.css'
 import './mobile.css'
