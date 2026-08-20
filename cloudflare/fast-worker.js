@@ -1,7 +1,8 @@
 import baseWorker from './worker-recognition.js'
 
-const FAST_VERSION = '0.2.0-moondream-fast-scan-dev'
+const FAST_VERSION = '0.3.0-moondream-caption-deadline-dev'
 const FAST_VISION_MODEL = '@cf/moondream/moondream3.1-9B-A2B'
+const MODEL_DEADLINE_MS = 2500
 
 const PRODUCT_HINTS = [
   ['over-ear headphones', 'headphones', /\b(over[- ]?ear|circumaural|headphone|headset)s?\b/i],
@@ -36,7 +37,10 @@ function classify(text) {
     .find(Boolean)
 
   if (!first || /unknown|cannot|unclear|unsure|not enough/i.test(first)) return null
-  const generic = first.replace(/^(this is|it is|a photo of|an image of|the image shows)\s+/i, '').trim().slice(0, 72)
+  const generic = first
+    .replace(/^(this is|it is|a photo of|an image of|the image shows|a|an)\s+/i, '')
+    .trim()
+    .slice(0, 72)
   if (!generic || generic.split(/\s+/).length > 8) return null
 
   return {
@@ -55,27 +59,39 @@ function toDataUri(file, bytes) {
   return `data:${file.type || 'image/jpeg'};base64,${btoa(binary)}`
 }
 
+function deadline(ms) {
+  return new Promise((_, reject) => {
+    const error = new Error(`Fast vision deadline exceeded after ${ms} ms`)
+    error.code = 'FAST_VISION_TIMEOUT'
+    setTimeout(() => reject(error), ms)
+  })
+}
+
 async function fastIdentify(request, env) {
   const started = Date.now()
   const form = await request.formData()
   const file = form.get('file')
   if (!(file instanceof File)) return Response.json({ detail: 'Image file is required.' }, { status: 400 })
-  if (file.size > 10 * 1024 * 1024) return Response.json({ detail: 'Image exceeds the 10 MB public demo limit.' }, { status: 413 })
+  if (file.size > 4 * 1024 * 1024) return Response.json({ detail: 'Fast image exceeds the 4 MB limit.' }, { status: 413 })
 
   const bytes = new Uint8Array(await file.arrayBuffer())
   const image = toDataUri(file, bytes)
+  const inferenceStarted = Date.now()
 
-  const result = await env.AI.run(FAST_VISION_MODEL, {
-    task: 'query',
-    image,
-    question: 'Name the generic physical product family visible in this image. Answer with only 2 to 5 words, no brand, no model, no explanation. Examples: over-ear headphones, folding multi-tool, smartphone, laptop computer, battery, eyeglasses, plastic beverage bottle.',
-    reasoning: false,
-    temperature: 0,
-    max_tokens: 24,
-    stream: false,
-  })
+  const result = await Promise.race([
+    env.AI.run(FAST_VISION_MODEL, {
+      task: 'caption',
+      image,
+      caption_length: 'short',
+      temperature: 0,
+      max_tokens: 24,
+      stream: false,
+    }),
+    deadline(MODEL_DEADLINE_MS),
+  ])
 
-  const answer = String(result?.answer || result?.response || result?.text || '').trim()
+  const inference_ms = Date.now() - inferenceStarted
+  const answer = String(result?.caption || result?.answer || result?.response || result?.text || '').trim()
   const family = classify(answer)
   const elapsed_ms = Date.now() - started
 
@@ -84,6 +100,7 @@ async function fastIdentify(request, env) {
       version: FAST_VERSION,
       model: FAST_VISION_MODEL,
       elapsed_ms,
+      inference_ms,
       identification: { status: 'unresolved', product_type: null, category: 'other', confidence: 0 },
       description: answer,
     })
@@ -93,12 +110,13 @@ async function fastIdentify(request, env) {
     version: FAST_VERSION,
     model: FAST_VISION_MODEL,
     elapsed_ms,
+    inference_ms,
     identification: {
       status: 'identified',
       product_type: family.product_type,
       category: family.category,
       confidence: family.confidence,
-      recognition_mode: 'moondream31_direct_visual_query',
+      recognition_mode: 'moondream31_short_caption_fast_path',
     },
     description: answer,
   })
@@ -111,12 +129,14 @@ export default {
       try {
         return await fastIdentify(request, env)
       } catch (error) {
+        const timedOut = error?.code === 'FAST_VISION_TIMEOUT'
         console.warn('REGIQ Moondream fast recognition failed', String(error?.message || error))
         return Response.json({
           version: FAST_VERSION,
           model: FAST_VISION_MODEL,
+          elapsed_ms: MODEL_DEADLINE_MS,
           identification: { status: 'unresolved', product_type: null, category: 'other', confidence: 0 },
-          diagnostic_code: 'FAST_RECOGNITION_UNAVAILABLE',
+          diagnostic_code: timedOut ? 'FAST_RECOGNITION_TIMEOUT' : 'FAST_RECOGNITION_UNAVAILABLE',
         }, { status: 200 })
       }
     }
