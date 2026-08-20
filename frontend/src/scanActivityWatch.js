@@ -13,11 +13,11 @@ function ensureStyles() {
     .regiq-activity-stack {
       position: absolute;
       z-index: 14;
-      top: 90px;
+      top: 118px;
       left: 20px;
       right: 20px;
       display: grid;
-      gap: 8px;
+      gap: 14px;
       pointer-events: none;
     }
     .regiq-activity-watch {
@@ -25,6 +25,7 @@ function ensureStyles() {
       display: flex;
       align-items: center;
       gap: 12px;
+      margin: 0;
       padding: 10px 14px;
       border-radius: 18px;
       color: #fff;
@@ -47,6 +48,10 @@ function ensureStyles() {
     .regiq-activity-watch.complete {
       background: rgba(10,48,37,.84);
       border-color: rgba(65,222,149,.28);
+    }
+    .regiq-activity-watch.degraded {
+      background: rgba(74,52,18,.84);
+      border-color: rgba(255,193,92,.34);
     }
     .regiq-activity-watch.error {
       background: rgba(67,29,24,.84);
@@ -72,6 +77,11 @@ function ensureStyles() {
     .regiq-activity-watch.complete .regiq-activity-dot {
       background: #36d98c;
       box-shadow: 0 0 0 6px rgba(54,217,140,.12), 0 0 16px rgba(54,217,140,.7);
+      animation: none;
+    }
+    .regiq-activity-watch.degraded .regiq-activity-dot {
+      background: #ffc15c;
+      box-shadow: 0 0 0 6px rgba(255,193,92,.13), 0 0 16px rgba(255,193,92,.5);
       animation: none;
     }
     .regiq-activity-watch.error .regiq-activity-dot {
@@ -104,7 +114,7 @@ function ensureStyles() {
     @keyframes regiqActivityPulse { 50% { opacity:.45; transform:scale(.82); } }
     @keyframes regiqActivityIn { from { opacity:0; transform:translateY(-5px) } to { opacity:1; transform:none } }
     @media (max-width: 640px) {
-      .regiq-activity-stack { top: 80px; left: 12px; right: 12px; gap: 6px; }
+      .regiq-activity-stack { top: 88px; left: 12px; right: 12px; gap: 10px; }
       .regiq-activity-watch { min-height: 52px; padding: 9px 11px; border-radius: 15px; }
       .regiq-activity-time { min-width: 50px; font-size: 12px; }
       .regiq-activity-copy strong { font-size: 12px; }
@@ -160,7 +170,7 @@ function startStage(detail) {
   states.set(id, { started, label: detail.label, subtitle: detail.subtitle })
   const watch = ensureWatch(id, detail.label, detail.subtitle)
   if (!watch) return
-  watch.classList.remove('complete', 'error')
+  watch.classList.remove('complete', 'degraded', 'error')
   watch.querySelector('.regiq-activity-time').textContent = '0.0 s'
   timers.set(id, setInterval(() => {
     const current = states.get(id)
@@ -180,25 +190,33 @@ function finishStage(detail, ok = true) {
   stopTimer(id)
   const watch = ensureWatch(id, detail.label || state?.label || id, detail.subtitle || state?.subtitle || '')
   if (!watch) return
-  watch.classList.remove('complete', 'error')
-  watch.classList.add(ok ? 'complete' : 'error')
+  watch.classList.remove('complete', 'degraded', 'error')
+  if (!ok) watch.classList.add('error')
+  else if (detail.degraded) watch.classList.add('degraded')
+  else watch.classList.add('complete')
   watch.querySelector('.regiq-activity-time').textContent = renderTime(elapsed)
-  if (ok) {
-    const subtitle = id === 'investigation'
-      ? 'Candidate regulations mapped'
-      : id === 'verification'
-        ? 'Findings independently challenged'
-        : id === 'deep-product'
-          ? 'Deep product analysis complete'
-          : 'Completed'
-    watch.querySelector('small').textContent = subtitle
-  } else {
+
+  if (!ok) {
     watch.querySelector('small').textContent = detail.message || 'Stage interrupted'
+    return
   }
+  if (detail.degraded) {
+    watch.querySelector('small').textContent = detail.message || 'Completed conservatively with REGIQ guardrails'
+    return
+  }
+
+  const subtitle = id === 'investigation'
+    ? 'Candidate regulations mapped'
+    : id === 'verification'
+      ? 'Findings independently challenged'
+      : id === 'deep-product'
+        ? 'Deep product analysis complete'
+        : 'Completed'
+  watch.querySelector('small').textContent = subtitle
 }
 
 function reset() {
-  for (const id of timers.keys()) stopTimer(id)
+  for (const id of [...timers.keys()]) stopTimer(id)
   states.clear()
   document.querySelectorAll('.regiq-activity-stack').forEach(node => node.remove())
 }
