@@ -44,4 +44,4 @@ jobs:
           cache-dependency-path: backend/requirements.txt
       - run: pip install -r backend/requirements.txt
       - run: python -c "import backend.main; print(backend.main.app.title)"
-      - run: pytest -q
+      - run: python -m pytest -q
