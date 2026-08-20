@@ -1,7 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import './uploadCompat'
-import './stagedScanBridge'
+import './stagedScanBridgeV2'
 import './scanActivityWatch'
 import App from './AppV2'
 import './regiq-os.css'
