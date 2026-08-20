@@ -1,9 +1,10 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import './uploadCompat'
-import './fastScanClient'
+import './fastScanBridge'
 import App from './AppV2'
 import './regiq-os.css'
+import './fast-scan.css'
 import './mobile.css'
 
 // AppV2 uses a visually styled upload control inside the dark scan panel.
