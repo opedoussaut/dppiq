@@ -14,7 +14,8 @@ const publicConfig = {
   vision: {
     enabled: true,
     provider: 'cloudflare-workers-ai',
-    model: '@cf/google/gemma-4-26b-a4b-it',
+    model: '@cf/meta/llama-4-scout-17b-16e-instruct',
+    fallback_model: '@cf/google/gemma-4-26b-a4b-it',
     server_token_configured: true,
     byo_hf_token_enabled: false,
   },
@@ -88,6 +89,36 @@ test.describe('REGIQ release smoke', () => {
     await page.getByRole('button', { name: /setup/i }).click()
     await expect(page.getByRole('heading', { name: /host credentials are ready/i })).toBeVisible()
     await expect(page.locator('input[placeholder="hf_…"]')).toHaveCount(0)
+    await assertNoHorizontalOverflow(page)
+  })
+
+  test('unresolved recognition degrades gracefully without a technical error banner', async ({ page }) => {
+    await page.route('**/api/scan/image', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        filename: 'ambiguous.jpg',
+        content_type: 'image/jpeg',
+        identification: {
+          status: 'unresolved',
+          message: 'I could not identify this product reliably from this image. Try another angle, move closer, or photograph a label or model marking.',
+          product_type: null,
+          category: 'other',
+          visual_evidence_confidence: 25,
+          product_family_confidence: 0,
+          exact_product_confidence: 0,
+        },
+        regulatory_profile: null,
+        regulatory: { status: 'not_assessed' },
+        discovery: { status: 'waiting_for_identification' },
+      }),
+    }))
+
+    const fileInput = page.locator('input[type="file"]').first()
+    await fileInput.setInputFiles({ name: 'ambiguous.jpg', mimeType: 'image/jpeg', buffer: Buffer.from('not-a-real-image-but-api-is-mocked') })
+    await expect(page.getByRole('heading', { name: /product not identified/i })).toBeVisible()
+    await expect(page.getByText(/try another angle/i)).toBeVisible()
+    await expect(page.locator('.error')).toHaveCount(0)
     await assertNoHorizontalOverflow(page)
   })
 })
