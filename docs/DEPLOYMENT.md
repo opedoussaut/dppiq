@@ -1,50 +1,117 @@
-# REGIQ deployment guide
+# REGIQ deployment
 
-REGIQ supports three practical sharing modes:
+REGIQ supports two deployment modes:
 
-1. **Hosted demo** — one public HTTPS URL; the host pays for inference.
-2. **Hosted BYO** — one public HTTPS URL; users enter their own Hugging Face token in Setup.
-3. **Self-hosted/private** — users run REGIQ themselves with Hugging Face or Ollama.
+1. **Public free-tier deployment:** Cloudflare Workers + Workers AI + Worker Static Assets.
+2. **Self-hosted development/runtime:** FastAPI + React, optionally Docker, Hugging Face or Ollama.
 
-No secret belongs in frontend source code or Git history.
+The public project direction is Cloudflare-native.
 
-## 1. Easiest production deployment: Docker
+## Public Cloudflare deployment
 
-REGIQ builds the React frontend and FastAPI backend into one image. FastAPI serves the built frontend and all `/api` endpoints from the same origin.
+### Architecture
 
-```bash
-git clone https://github.com/opedoussaut/regiq.git
-cd regiq
-docker compose up --build
+```text
+Browser / PWA
+    |
+    v
+Cloudflare Worker
+    |-- /api/* --------> cloudflare/worker.js
+    |                       |
+    |                       +--> Workers AI vision
+    |                       +--> Workers AI investigator
+    |                       +--> Workers AI verifier
+    |                       +--> bundled regulatory_catalog.json
+    |
+    +-- everything else -> frontend/dist static assets
 ```
 
-Open `http://localhost:8000`.
+The Worker and frontend share one HTTPS origin. There is no CORS/proxy configuration in production and no always-on server process.
 
-To provide a host-owned Hugging Face token:
+### Free-tier behavior
+
+REGIQ is designed to stay free to the project owner while usage remains within the Cloudflare Workers/Workers AI free allocations. REGIQ does not configure automatic paid fallback. If the Workers AI daily free capacity is exhausted, API calls return an explicit capacity error and the UI remains available.
+
+Cloudflare periodically changes model availability and quotas. Before a public release, verify the current Workers AI model catalog and free-plan limits.
+
+### One-time setup
 
 ```bash
-export HF_TOKEN=hf_your_token_here
-docker compose up --build
+npm install
+npx wrangler login
 ```
 
-`compose.yaml` enables BYO token support by default, so a deployment can also run without a host token and let trusted users enter their own token in the REGIQ Setup screen.
+`npm install` at repository root also installs the frontend dependencies.
 
-## 2. GitHub Codespaces development
-
-Backend:
+### Validate before deployment
 
 ```bash
+npm run test:mobile
+npm run test:ui
+npm run deploy:dry-run
+```
+
+### Deploy
+
+```bash
+npm run deploy
+```
+
+This performs a Vite production build and then `wrangler deploy`. The public application is served from a `*.workers.dev` URL unless a custom domain is configured.
+
+### Local Cloudflare preview
+
+```bash
+npm run cf:dev
+```
+
+This builds the frontend and starts Wrangler locally with the Workers AI binding available according to Wrangler's development mode.
+
+## Continuous deployment
+
+The repository CI validates:
+
+- Cloudflare build and Wrangler dry-run;
+- full Playwright desktop/mobile release smoke tests;
+- FastAPI self-host regression tests.
+
+For automatic public deployment, connect the repository to Cloudflare Workers Builds or use a GitHub Actions deployment with Cloudflare credentials stored as repository secrets. The repository intentionally does not commit Cloudflare account credentials.
+
+## Public API
+
+Cloudflare public runtime:
+
+```text
+GET  /api/health
+GET  /api/scan/config
+GET  /api/model/provenance
+GET  /api/regulation/catalog
+POST /api/scan/image
+POST /api/scan/reassess
+```
+
+The Python self-host runtime exposes additional development endpoints.
+
+## Self-hosted FastAPI mode
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r backend/requirements.txt
+
 export REGIQ_VISION_ENABLED=true
 export REGIQ_VISION_PROVIDER=huggingface
 export REGIQ_HF_MODEL=auto
+export REGIQ_AGENTIC_REGULATION_ENABLED=true
+export REGIQ_REGULATION_MODEL=auto
+export REGIQ_VERIFIER_MODEL=auto
 export REGIQ_ALLOW_BYO_HF_TOKEN=true
-# Optional host credential:
-# export HF_TOKEN=hf_your_token_here
-uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+export HF_TOKEN=hf_...
+
+uvicorn backend.main:app --host 0.0.0.0 --port 8000
 ```
 
-Frontend, second terminal:
+In a second terminal:
 
 ```bash
 cd frontend
@@ -52,114 +119,18 @@ npm install
 npm run dev -- --host 0.0.0.0
 ```
 
-Open the forwarded HTTPS URL for port 5173. The same URL can be opened on a phone if the Codespace port visibility and GitHub authentication settings allow it.
-
-## 3. Mobile and PWA deployment
-
-For normal mobile use, deploy REGIQ behind HTTPS. Camera APIs and PWA installation work most reliably in a secure context.
-
-### iPhone / iPad
-
-1. Open the REGIQ HTTPS URL in Safari.
-2. Tap **Share**.
-3. Choose **Add to Home Screen**.
-4. Launch REGIQ from the new home-screen icon.
-
-### Android / Chrome
-
-1. Open the REGIQ HTTPS URL in Chrome.
-2. Use **Install app** or **Add to Home screen** from the browser menu, or use REGIQ's Setup install button when the browser exposes it.
-3. Launch REGIQ like a normal app.
-
-The live scan requests the environment-facing camera where supported. The upload fallback uses `capture="environment"` to offer direct camera capture on mobile browsers.
-
-The PWA service worker caches only same-origin GET resources and does not cache `/api` calls.
-
-## 4. Bring Your Own Hugging Face token
-
-Enable the backend feature:
+## Docker self-host
 
 ```bash
-export REGIQ_ALLOW_BYO_HF_TOKEN=true
+docker compose up --build
 ```
 
-The REGIQ Setup screen then shows a password-style token input. The frontend keeps this value only in React memory; it is not written to localStorage or scan history.
+Docker remains a convenience for contributors and private/self-hosted deployments; it is not the public hosting strategy.
 
-For direct API clients:
+## Security
 
-```bash
-curl -X POST https://your-regiq.example/api/scan/image \
-  -H 'X-REGIQ-HF-Token: hf_your_token_here' \
-  -F 'file=@product.jpg'
-```
-
-The token applies to that scan request only and overrides the server `HF_TOKEN` only when BYO support is enabled.
-
-Only send a BYO token to a backend you trust. A backend operator controls the server process and network stack. For maximum privacy, self-host REGIQ.
-
-## 5. Hosted public demo
-
-For a frictionless public demo:
-
-```bash
-REGIQ_VISION_ENABLED=true
-REGIQ_VISION_PROVIDER=huggingface
-REGIQ_HF_MODEL=auto
-HF_TOKEN=...
-REGIQ_ALLOW_BYO_HF_TOKEN=false
-```
-
-Visitors do not need credentials. The host is responsible for provider cost, quotas and abuse controls.
-
-For a community/self-funded deployment, omit `HF_TOKEN` and enable BYO.
-
-## 6. Local/private inference with Ollama
-
-```bash
-export REGIQ_VISION_ENABLED=true
-export REGIQ_VISION_PROVIDER=ollama
-export REGIQ_VISION_MODEL=qwen3-vl:2b
-export OLLAMA_BASE_URL=http://127.0.0.1:11434
-```
-
-Run Ollama separately. Local multimodal inference requires sufficient RAM/GPU resources.
-
-## 7. What REGIQ stores in the browser
-
-- Recent scan **metadata and regulatory result JSON** are stored in localStorage.
-- Captured image object URLs are not persisted across a full page reload.
-- BYO Hugging Face tokens are not stored in localStorage.
-- Clearing History removes REGIQ's saved scan history from that browser.
-
-## 8. Model provenance
-
-`GET /api/model/provenance` reports the REGIQ software version/license and current vision configuration.
-
-Successful Hugging Face recognition responses include best-effort runtime model provenance such as model ID, source URL, revision and model-card license when available.
-
-A pinned deployment may explicitly declare independently verified provenance:
-
-```bash
-REGIQ_MODEL_LICENSE=apache-2.0
-REGIQ_MODEL_SOURCE_URL=https://huggingface.co/<org>/<model>
-```
-
-REGIQ's Apache-2.0 license never automatically applies to third-party model weights.
-
-## 9. Production hardening checklist
-
-Before exposing REGIQ broadly:
-
-- use TLS/HTTPS;
-- add upload-size limits;
-- add rate limiting and inference quota controls;
-- set explicit allowed origins if frontend/backend are split across origins;
-- never log authorization or BYO token headers;
-- pin deployment dependencies and model/version provenance;
-- monitor official regulatory-source freshness;
-- keep legal uncertainty and the non-legal-advice disclaimer visible;
-- add automated tests for regulatory mappings before expanding coverage.
-
-## 10. License
-
-REGIQ source code is licensed under Apache License 2.0. Third-party libraries, model weights, datasets and regulatory source material retain their own licenses and terms.
+- Never commit model/API tokens.
+- The Cloudflare public Worker uses the `AI` binding; visitors do not receive a model token.
+- The public Worker does not intentionally persist uploaded images.
+- Regulatory results/history are stored locally in the browser unless a future persistence layer is explicitly added.
+- Keep legal source provenance in `data/regulatory_catalog.json` reviewable and version-controlled.
