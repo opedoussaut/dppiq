@@ -2,68 +2,132 @@
 
 **Regulation Intelligence** — an open-source, mobile-first "Shazam for product regulation".
 
-Point a phone or laptop camera at a physical product. REGIQ identifies it, normalizes it to a regulatory product family, maps potentially applicable EU regulatory regimes, and explains the result with traceable public sources. Digital Product Passports are one possible regulatory dimension, not the boundary of the product.
+Point a phone or laptop camera at a physical product. REGIQ identifies the product, investigates a versioned verified EU regulatory corpus, asks an independent verifier to challenge the findings, and exposes evidence confidence and official sources. Digital Product Passports are one possible regulatory dimension, not the boundary of the product.
 
-> **Current release:** `1.0.0-beta.1`
+> **Current public architecture:** Cloudflare Workers + Workers AI + React PWA  
+> **Current release line:** `1.2.0-cloudflare-beta`
 
-REGIQ is a regulatory-intelligence prototype, not legal advice or an automated compliance determination. Applicability can depend on exact specifications, intended use, market, dates, exemptions and Member State implementation.
+REGIQ is a regulatory-intelligence prototype, not legal advice or an automated compliance determination. Exact applicability can depend on product specifications, intended use, market, dates, exemptions and Member State implementation.
 
-## Public-beta coverage
+## Why Cloudflare-native
 
-REGIQ currently has curated EU regulatory families for:
+The public demo is designed to cost the project owner **€0 while it stays within Cloudflare's free allocations**. There is no always-on VM, no Codespace dependency and no public Hugging Face token.
 
-- plastic beverage bottles;
-- smartphones;
-- laptops;
-- wireless headphones / earbuds;
-- power banks;
-- household batteries;
-- LED lamps / bulbs;
-- power tools / drills;
-- textile garments;
-- electronic toys;
-- EV batteries, LMT batteries and industrial batteries above 2 kWh.
+```text
+Android / iPhone / desktop
+           |
+           v
+   Cloudflare HTTPS edge
+           |
+   +-------+--------+
+   |                |
+React PWA       Worker /api
+static assets       |
+   |            Workers AI
+   |          vision + agents
+   |                |
+   +------ verified EU corpus
+```
 
-Products outside these curated families deliberately fall back to **screening required** rather than claiming regulatory completeness.
+Cloudflare serves the React build and Worker API from the same origin. `/api/*` runs through `cloudflare/worker.js`; all other requests are served from `frontend/dist` with SPA fallback.
 
-The regulatory catalog is stored in `data/regulatory_catalog.json`, versioned independently from application code, and exposes official EUR-Lex source links and a verification date.
+The public app uses Workers AI's daily free allocation. When that allocation is exhausted, REGIQ returns an explicit capacity message rather than silently switching to paid inference. No billing secret is stored in the browser.
 
-## What works today
+## Public inference pipeline
 
-- live camera capture on laptop and mobile;
-- photo upload and basic barcode signal validation;
-- pluggable open-weight visual identification through Hugging Face Inference Providers or Ollama;
-- product-family normalization between vision and regulatory reasoning;
-- multi-regime EU regulatory mapping with current / likely / conditional / upcoming / context distinctions;
-- product-specific Intelligence view based on the latest scan;
-- model/provider/license provenance where available;
-- regulatory-catalog version and source provenance;
-- local browser scan history;
-- optional Bring Your Own Hugging Face token flow;
-- Progressive Web App support for home-screen installation;
-- premium responsive mobile-first UI;
-- one-container Docker deployment;
-- Render deployment blueprint;
-- automated backend/frontend CI;
-- Apache-2.0 licensing for REGIQ itself.
+1. **Vision** — `@cf/google/gemma-4-26b-a4b-it` identifies the physical product from the submitted image.
+2. **Investigator** — `@cf/zai-org/glm-4.7-flash` screens the product against the complete verified catalog in `data/regulatory_catalog.json`.
+3. **Verifier** — a second model call challenges every proposed finding against the same corpus.
+4. **REGIQ confidence** — deterministic evidence-weighted confidence is computed from identity quality, official-source authority, applicability specificity, missing evidence and verifier agreement.
+5. **Intelligence** — the UI exposes applicable/likely/conditional/upcoming findings, evidence gaps, official URLs and re-assessment.
 
-## Fastest way to try it
+The public Worker does **not** use predefined product-family mappings as its primary reasoning path. `product_families` remain in the catalog for regression testing and the FastAPI fallback implementation.
 
-### Codespaces / local development
+## Public-beta regulatory corpus
+
+The current verified catalog includes official EUR-Lex references for PPWR, Single-Use Plastics, food-contact materials, ESPR, Batteries Regulation, RoHS, WEEE, RED, Common Charger, smartphone ecodesign, lighting rules, textile labelling, REACH, GPSR, machinery legislation and toy-safety legislation.
+
+`data/regulatory_catalog.json` is versioned independently from application code and exposes its verification date.
+
+## Deploy the free public app
+
+### Prerequisites
+
+- free Cloudflare account;
+- Node.js 20+;
+- this repository cloned locally or opened in Codespaces only for development/deployment.
+
+### First deployment
+
+```bash
+git clone https://github.com/opedoussaut/regiq.git
+cd regiq
+npm install
+npx wrangler login
+npm run deploy
+```
+
+Wrangler builds the React frontend and deploys the Worker + assets as one application. The resulting URL is typically:
+
+```text
+https://regiq.<your-workers-subdomain>.workers.dev
+```
+
+No `HF_TOKEN`, Render account, Docker host, Uvicorn process or Vite dev server is required for the public Cloudflare runtime.
+
+### Local Cloudflare-runtime preview
+
+```bash
+npm install
+npm run cf:dev
+```
+
+This builds the frontend and starts Wrangler locally so `/api/*` behaves like the public Worker.
+
+### Release checks
+
+```bash
+npm run test:mobile
+npm run test:ui
+npm run deploy:dry-run
+```
+
+The Playwright release suite checks desktop Chrome, a Pixel-sized Android viewport and a 360 px narrow-phone viewport for visual completeness, navigation and overflow.
+
+## Mobile use
+
+REGIQ is a Progressive Web App.
+
+- **Android/Chrome:** open the HTTPS deployment → browser menu → **Install app** / **Add to Home screen**.
+- **iPhone/iPad:** open in Safari → Share → **Add to Home Screen**.
+- Live camera requests the environment-facing camera where supported.
+- Photo upload supports normal browser images plus HEIC/HEIF preprocessing in the frontend.
+- Recent assessments are stored locally in the browser.
+
+The Cloudflare deployment is HTTPS by default, which is required for reliable camera/PWA behavior.
+
+## Self-hosted / development FastAPI runtime
+
+The original Python implementation remains available for contributors who want local Hugging Face or Ollama inference, Docker deployment, or backend experimentation.
 
 Backend:
 
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r backend/requirements.txt
+
 export REGIQ_VISION_ENABLED=true
 export REGIQ_VISION_PROVIDER=huggingface
 export REGIQ_HF_MODEL=auto
+export REGIQ_AGENTIC_REGULATION_ENABLED=true
 export REGIQ_ALLOW_BYO_HF_TOKEN=true
-# Optional: export HF_TOKEN=hf_... if the host pays for inference
+export HF_TOKEN=hf_...
+
 uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Frontend, in another terminal:
+Frontend:
 
 ```bash
 cd frontend
@@ -71,143 +135,45 @@ npm install
 npm run dev -- --host 0.0.0.0
 ```
 
-Open port 5173. A Codespaces forwarded HTTPS URL can also be opened from a phone, subject to the port visibility/authentication settings.
+For Ollama, see `.env.example`.
 
-### One-command Docker deployment
+## Repository layout
 
-```bash
-git clone https://github.com/opedoussaut/regiq.git
-cd regiq
-docker compose up --build
-```
+- `cloudflare/worker.js` — public serverless API and Workers AI orchestration
+- `wrangler.jsonc` — Cloudflare Worker, AI binding and static-asset routing
+- `package.json` — root build/test/deploy commands
+- `frontend/` — React/Vite responsive PWA
+- `backend/` — FastAPI self-host/development implementation
+- `data/regulatory_catalog.json` — versioned verified regulatory corpus
+- `docs/` — architecture, deployment, public-beta and methodology notes
+- `Dockerfile` / `compose.yaml` — optional self-hosted Docker path
+- `.env.example` — safe FastAPI/local configuration template
+- `LICENSE` — Apache License 2.0
 
-Then open `http://localhost:8000`.
-
-### Public HTTPS deployment
-
-The repository includes `render.yaml` for a Docker-based Render deployment. Connect the repository, create a Blueprint, set `HF_TOKEN` as a platform secret, and deploy. See `docs/PUBLIC_BETA.md` and `docs/DEPLOYMENT.md`.
-
-For a frictionless public demo, use a server-side token and keep:
-
-```bash
-REGIQ_ALLOW_BYO_HF_TOKEN=false
-```
-
-That lets visitors scan immediately without supplying credentials.
-
-## Mobile use
-
-REGIQ is a Progressive Web App.
-
-- **iPhone/iPad:** open the HTTPS deployment in Safari → Share → **Add to Home Screen**.
-- **Android/Chrome:** open the HTTPS deployment → browser menu → **Install app** / **Add to Home screen**.
-- The live camera requests the environment-facing camera where supported.
-- The photo input uses `capture="environment"` as a mobile fallback.
-- Recent scan metadata and regulatory results are stored locally in the browser.
-- A Hugging Face token entered in Setup is kept only in page memory and is not intentionally persisted by the frontend.
-
-A public deployment should use HTTPS for reliable camera and PWA behavior.
-
-## Architecture
-
-```text
-Camera / photo / identifier
-          |
-          v
- Product identification
-          |
-          v
- Product-family normalization
-          |
-          v
- Versioned regulatory catalog
-          |
-    +-----+----------+----------+---------+
-    |                |          |         |
-    v                v          v         v
-Packaging        Batteries    ESPR     Sector rules
-    |                |          |         |
-    +----------------+----------+---------+
-                     v
-      Applicability + uncertainty layer
-                     |
-                     v
-         Product intelligence dossier
-```
-
-Recognition is probabilistic and replaceable. REGIQ keeps visual identification, category normalization, regulatory sources and regulatory interpretation as separate layers.
-
-## Regulatory-source policy
-
-The beta catalog prioritizes official EUR-Lex legal acts. Examples include PPWR Regulation (EU) 2025/40, Batteries Regulation (EU) 2023/1542, smartphone ecodesign Regulation (EU) 2023/1670, RoHS, WEEE, RED, the Common Charger Directive, REACH, GPSR, machinery legislation and toy-safety legislation.
-
-`GET /api/regulation/catalog` exposes the current machine-readable catalog.
-
-## Useful endpoints
+## Public Worker endpoints
 
 ```text
 GET  /api/health
 GET  /api/scan/config
 GET  /api/model/provenance
 GET  /api/regulation/catalog
-GET  /api/regulation/reference
-GET  /api/regulation/change
-GET  /api/evolution
 POST /api/scan/image
+POST /api/scan/reassess
 ```
-
-## Environment variables
-
-See `.env.example`.
-
-```bash
-REGIQ_VISION_ENABLED=true
-REGIQ_VISION_PROVIDER=huggingface
-REGIQ_HF_MODEL=auto
-REGIQ_ALLOW_BYO_HF_TOKEN=true
-HF_TOKEN=
-```
-
-For Ollama:
-
-```bash
-REGIQ_VISION_PROVIDER=ollama
-REGIQ_VISION_MODEL=qwen3-vl:2b
-OLLAMA_BASE_URL=http://127.0.0.1:11434
-```
-
-## Repository layout
-
-- `backend/` — FastAPI, product-family normalization, recognition gateway and regulatory intelligence
-- `frontend/` — React/Vite mobile-first PWA
-- `data/regulatory_catalog.json` — versioned authoritative-source regulatory catalog
-- `data/` — additional regulatory snapshots and benchmark data
-- `docs/` — deployment, public-beta and methodology guides
-- `Dockerfile` — production frontend + backend image
-- `compose.yaml` — one-command startup
-- `render.yaml` — public-hosting blueprint
-- `.env.example` — safe configuration template
-- `LICENSE` — Apache License 2.0
-
-## Self-improving workflow
-
-REGIQ treats regulation and agent performance as changing environments. Candidate improvements should detect and version authoritative regulatory changes, translate them into candidate machine-readable rules, benchmark mappings against known products, reject regressions and false-compliance increases, and promote changes only when objective evaluation improves.
-
-The goal is **auditable self-improvement**, not uncontrolled self-modifying code.
 
 ## Principles
 
-- **Authoritative-source first** — legal conclusions remain traceable.
-- **No false certainty** — uncertainty and incomplete coverage are explicit.
-- **Model-neutral** — REGIQ is not tied to one inference provider.
-- **Source-aware** — source, extraction, interpretation and conclusion remain separate.
-- **Auditable** — scans expose evidence and provenance.
-- **Public-first** — proprietary enterprise integrations are not required.
-- **Benchmark-gated evolution** — self-improvement must be measurable and reviewable.
+- **Authoritative-source first** — regulatory findings stay traceable to the verified corpus.
+- **No false certainty** — missing evidence creates questions/conditional findings rather than guesses.
+- **Independent verification** — the verifier can reject unsupported investigator findings.
+- **Deterministic confidence** — the model does not self-award a confidence score.
+- **Open-source first** — Apache-2.0 software; third-party models and legal sources retain their own terms.
+- **Free public demo by design** — no mandatory user account or token; capacity is bounded by free cloud allocations.
+- **Self-hostable** — FastAPI/Docker remains available independently of Cloudflare.
 
-## Security
+## Security and privacy
 
-Never commit tokens. Use environment variables, platform secrets, or the optional session-only BYO flow. If a token is ever pasted publicly, revoke it and create a replacement.
+Never commit API tokens. The Cloudflare public runtime uses a Workers AI binding and does not expose a model credential to the browser. Uploaded images are sent to the Worker for inference; REGIQ does not intentionally persist them in application storage. Browser history stores assessment metadata/results locally.
 
 ## License
 
