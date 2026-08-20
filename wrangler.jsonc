@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "regiq",
-  "main": "./cloudflare/worker-recognition.js",
+  "main": "./cloudflare/fast-worker.js",
   "compatibility_date": "2026-08-20",
   "workers_dev": true,
   "ai": {
