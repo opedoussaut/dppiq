@@ -1,14 +1,16 @@
 import baseWorker from './worker-recognition.js'
 
-const FAST_VERSION = '0.1.0-fast-scan-dev'
+const FAST_VERSION = '0.2.0-moوندream-fast-scan-dev'
+const FAST_VISION_MODEL = '@cf/moondream/moondream3.1-9B-A2B'
 
 const PRODUCT_HINTS = [
   ['over-ear headphones', 'headphones', /\b(over[- ]?ear|circumaural|headphone|headset)s?\b/i],
-  ['earbuds', 'earbuds', /\b(earbud|in[- ]?ear earphone)s?\b/i],
+  ['earbuds', 'earbuds', /\b(earbud|earphone|in[- ]?ear)s?\b/i],
   ['smartphone', 'smartphone', /\b(smartphone|mobile phone|cell phone|handset)\b/i],
   ['laptop computer', 'laptop', /\b(laptop|notebook computer|portable computer)\b/i],
   ['computer server', 'server', /\b(server|rack server|blade server)\b/i],
   ['folding multi-tool', 'multi_tool', /\b(multi[- ]?tool|multitool|folding tool|swiss army|pocket tool)\b/i],
+  ['eyeglasses', 'eyewear', /\b(eyeglasses?|spectacles?|glasses frame|pair of glasses)\b/i],
   ['battery', 'battery', /\b(battery|cell pack|accumulator)\b/i],
   ['plastic beverage bottle', 'plastic_beverage_bottle', /\b(plastic|pet).*\b(bottle|beverage|water|drink)\b|\bplastic bottle\b/i],
   ['beverage bottle', 'beverage_bottle', /\b(beverage|water|drink).*\bbottle\b|\bbottle\b/i],
@@ -23,12 +25,34 @@ const PRODUCT_HINTS = [
 ]
 
 function classify(text) {
-  const value = String(text || '')
+  const value = String(text || '').replace(/[`*_#]/g, ' ').trim()
   for (const [product_type, category, pattern] of PRODUCT_HINTS) {
-    if (pattern.test(value)) return { product_type, category }
+    if (pattern.test(value)) return { product_type, category, confidence: 0.96 }
   }
-  const firstLine = value.split(/\n+/).map(v => v.trim()).find(Boolean)
-  return firstLine ? { product_type: firstLine.slice(0, 90), category: 'other' } : null
+
+  const first = value
+    .split(/[\n.!?]/)
+    .map(v => v.trim())
+    .find(Boolean)
+
+  if (!first || /unknown|cannot|unclear|unsure|not enough/i.test(first)) return null
+  const generic = first.replace(/^(this is|it is|a photo of|an image of|the image shows)\s+/i, '').trim().slice(0, 72)
+  if (!generic || generic.split(/\s+/).length > 8) return null
+
+  return {
+    product_type: generic,
+    category: generic.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'other',
+    confidence: 0.78,
+  }
+}
+
+function toDataUri(file, bytes) {
+  let binary = ''
+  const chunk = 0x8000
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk))
+  }
+  return `data:${file.type || 'image/jpeg'};base64,${btoa(binary)}`
 }
 
 async function fastIdentify(request, env) {
@@ -36,45 +60,47 @@ async function fastIdentify(request, env) {
   const form = await request.formData()
   const file = form.get('file')
   if (!(file instanceof File)) return Response.json({ detail: 'Image file is required.' }, { status: 400 })
+  if (file.size > 10 * 1024 * 1024) return Response.json({ detail: 'Image exceeds the 10 MB public demo limit.' }, { status: 413 })
 
-  const converted = await env.AI.toMarkdown(
-    {
-      name: file.name || 'scan.jpg',
-      blob: new Blob([await file.arrayBuffer()], { type: file.type || 'image/jpeg' }),
-    },
-    {
-      conversionOptions: {
-        output: { format: 'text' },
-        image: { descriptionLanguage: 'en' },
-      },
-    },
-  )
+  const bytes = new Uint8Array(await file.arrayBuffer())
+  const image = toDataUri(file, bytes)
 
-  const result = Array.isArray(converted) ? converted[0] : converted
-  const description = result?.data || ''
-  const family = classify(description)
+  const result = await env.AI.run(FAST_VISION_MODEL, {
+    task: 'query',
+    image,
+    question: 'Name the generic physical product family visible in this image. Answer with only 2 to 5 words, no brand, no model, no explanation. Examples: over-ear headphones, folding multi-tool, smartphone, laptop computer, battery, eyeglasses, plastic beverage bottle.',
+    reasoning: false,
+    temperature: 0,
+    max_tokens: 24,
+    stream: false,
+  })
+
+  const answer = String(result?.answer || result?.response || result?.text || '').trim()
+  const family = classify(answer)
   const elapsed_ms = Date.now() - started
 
   if (!family) {
     return Response.json({
       version: FAST_VERSION,
+      model: FAST_VISION_MODEL,
       elapsed_ms,
       identification: { status: 'unresolved', product_type: null, category: 'other', confidence: 0 },
-      description,
+      description: answer,
     })
   }
 
   return Response.json({
     version: FAST_VERSION,
+    model: FAST_VISION_MODEL,
     elapsed_ms,
     identification: {
       status: 'identified',
       product_type: family.product_type,
       category: family.category,
-      confidence: family.category === 'other' ? 0.65 : 0.92,
-      recognition_mode: 'cloudflare_tomarkdown_object_description_fast_path',
+      confidence: family.confidence,
+      recognition_mode: 'moondream31_direct_visual_query',
     },
-    description,
+    description: answer,
   })
 }
 
@@ -85,9 +111,10 @@ export default {
       try {
         return await fastIdentify(request, env)
       } catch (error) {
-        console.warn('REGIQ fast recognition failed', String(error?.message || error))
+        console.warn('REGIQ Moondream fast recognition failed', String(error?.message || error))
         return Response.json({
           version: FAST_VERSION,
+          model: FAST_VISION_MODEL,
           identification: { status: 'unresolved', product_type: null, category: 'other', confidence: 0 },
           diagnostic_code: 'FAST_RECOGNITION_UNAVAILABLE',
         }, { status: 200 })
