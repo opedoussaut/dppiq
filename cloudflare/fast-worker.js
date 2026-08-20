@@ -1,8 +1,9 @@
 import baseWorker from './worker-recognition.js'
 
-const FAST_VERSION = '0.3.0-moondream-caption-deadline-dev'
+const FAST_VERSION = '0.4.0-moondream-cascade-dev'
 const FAST_VISION_MODEL = '@cf/moondream/moondream3.1-9B-A2B'
-const MODEL_DEADLINE_MS = 2500
+const TOTAL_MODEL_BUDGET_MS = 2800
+const CAPTION_BUDGET_MS = 1500
 
 const PRODUCT_HINTS = [
   ['over-ear headphones', 'headphones', /\b(over[- ]?ear|circumaural|headphone|headset)s?\b/i],
@@ -36,9 +37,9 @@ function classify(text) {
     .map(v => v.trim())
     .find(Boolean)
 
-  if (!first || /unknown|cannot|unclear|unsure|not enough/i.test(first)) return null
+  if (!first || /unknown|cannot|unclear|unsure|not enough|unable to/i.test(first)) return null
   const generic = first
-    .replace(/^(this is|it is|a photo of|an image of|the image shows|a|an)\s+/i, '')
+    .replace(/^(this is|it is|a photo of|an image of|the image shows|the photo shows|a pair of|a|an)\s+/i, '')
     .trim()
     .slice(0, 72)
   if (!generic || generic.split(/\s+/).length > 8) return null
@@ -59,12 +60,56 @@ function toDataUri(file, bytes) {
   return `data:${file.type || 'image/jpeg'};base64,${btoa(binary)}`
 }
 
-function deadline(ms) {
+function deadline(ms, code = 'FAST_VISION_TIMEOUT') {
   return new Promise((_, reject) => {
     const error = new Error(`Fast vision deadline exceeded after ${ms} ms`)
-    error.code = 'FAST_VISION_TIMEOUT'
+    error.code = code
     setTimeout(() => reject(error), ms)
   })
+}
+
+function resultText(result) {
+  const payload = result?.result || result || {}
+  return String(
+    payload?.caption ||
+    payload?.answer ||
+    payload?.response ||
+    payload?.text ||
+    result?.caption ||
+    result?.answer ||
+    result?.response ||
+    result?.text ||
+    '',
+  ).trim()
+}
+
+async function runCaption(env, image, budgetMs) {
+  return Promise.race([
+    env.AI.run(FAST_VISION_MODEL, {
+      task: 'caption',
+      image,
+      caption_length: 'short',
+      temperature: 0,
+      max_tokens: 24,
+      stream: false,
+    }),
+    deadline(budgetMs, 'FAST_CAPTION_TIMEOUT'),
+  ])
+}
+
+async function runQuery(env, image, budgetMs) {
+  return Promise.race([
+    env.AI.run(FAST_VISION_MODEL, {
+      task: 'query',
+      image,
+      question: 'Name the generic physical product family in this image. Answer with only 2 to 5 words. No brand, no model, no explanation.',
+      reasoning: false,
+      temperature: 0,
+      max_tokens: 18,
+      stream: false,
+    }),
+    deadline(budgetMs, 'FAST_QUERY_TIMEOUT'),
+  ])
 }
 
 async function fastIdentify(request, env) {
@@ -77,23 +122,39 @@ async function fastIdentify(request, env) {
   const bytes = new Uint8Array(await file.arrayBuffer())
   const image = toDataUri(file, bytes)
   const inferenceStarted = Date.now()
+  const attempts = []
 
-  const result = await Promise.race([
-    env.AI.run(FAST_VISION_MODEL, {
-      task: 'caption',
-      image,
-      caption_length: 'short',
-      temperature: 0,
-      max_tokens: 24,
-      stream: false,
-    }),
-    deadline(MODEL_DEADLINE_MS),
-  ])
+  let captionText = ''
+  let queryText = ''
+  let family = null
+
+  try {
+    const captionResult = await runCaption(env, image, CAPTION_BUDGET_MS)
+    captionText = resultText(captionResult)
+    attempts.push({ skill: 'caption', text: captionText.slice(0, 160) })
+    family = classify(captionText)
+  } catch (error) {
+    attempts.push({ skill: 'caption', error: String(error?.code || error?.message || 'caption_failed') })
+  }
+
+  if (!family) {
+    const elapsed = Date.now() - inferenceStarted
+    const remaining = Math.max(0, TOTAL_MODEL_BUDGET_MS - elapsed)
+    if (remaining >= 350) {
+      try {
+        const queryResult = await runQuery(env, image, remaining)
+        queryText = resultText(queryResult)
+        attempts.push({ skill: 'query', text: queryText.slice(0, 160) })
+        family = classify(queryText)
+      } catch (error) {
+        attempts.push({ skill: 'query', error: String(error?.code || error?.message || 'query_failed') })
+      }
+    }
+  }
 
   const inference_ms = Date.now() - inferenceStarted
-  const answer = String(result?.caption || result?.answer || result?.response || result?.text || '').trim()
-  const family = classify(answer)
   const elapsed_ms = Date.now() - started
+  const description = queryText || captionText
 
   if (!family) {
     return Response.json({
@@ -102,7 +163,9 @@ async function fastIdentify(request, env) {
       elapsed_ms,
       inference_ms,
       identification: { status: 'unresolved', product_type: null, category: 'other', confidence: 0 },
-      description: answer,
+      description,
+      attempts,
+      diagnostic_code: inference_ms >= TOTAL_MODEL_BUDGET_MS - 50 ? 'FAST_RECOGNITION_TIMEOUT' : 'FAST_RECOGNITION_NO_MATCH',
     })
   }
 
@@ -116,9 +179,10 @@ async function fastIdentify(request, env) {
       product_type: family.product_type,
       category: family.category,
       confidence: family.confidence,
-      recognition_mode: 'moondream31_short_caption_fast_path',
+      recognition_mode: queryText ? 'moondream31_query_fallback' : 'moondream31_short_caption_fast_path',
     },
-    description: answer,
+    description,
+    attempts,
   })
 }
 
@@ -129,14 +193,13 @@ export default {
       try {
         return await fastIdentify(request, env)
       } catch (error) {
-        const timedOut = error?.code === 'FAST_VISION_TIMEOUT'
         console.warn('REGIQ Moondream fast recognition failed', String(error?.message || error))
         return Response.json({
           version: FAST_VERSION,
           model: FAST_VISION_MODEL,
-          elapsed_ms: MODEL_DEADLINE_MS,
+          elapsed_ms: TOTAL_MODEL_BUDGET_MS,
           identification: { status: 'unresolved', product_type: null, category: 'other', confidence: 0 },
-          diagnostic_code: timedOut ? 'FAST_RECOGNITION_TIMEOUT' : 'FAST_RECOGNITION_UNAVAILABLE',
+          diagnostic_code: 'FAST_RECOGNITION_UNAVAILABLE',
         }, { status: 200 })
       }
     }
