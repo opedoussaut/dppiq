@@ -1,0 +1,377 @@
+const nativeFetch = window.fetch.bind(window)
+
+const FAST_UI_DEADLINE_MS = 3500
+const FAST_IMAGE_MAX_DIMENSION = 768
+const FAST_IMAGE_QUALITY = 0.78
+
+let scanStartedAt = 0
+let scanTimer = null
+let lastFound = null
+
+function emit(detail) {
+  window.dispatchEvent(new CustomEvent('regiq-fastscan', { detail }))
+}
+
+function clearFastArtifacts() {
+  document.getElementById('regiq-fast-result-card')?.remove()
+  document.querySelectorAll('.regiq-found-badge').forEach(node => node.remove())
+}
+
+function startClock() {
+  scanStartedAt = performance.now()
+  lastFound = null
+  clearFastArtifacts()
+  clearInterval(scanTimer)
+  emit({ phase: 'searching', elapsed_ms: 0 })
+  scanTimer = setInterval(() => {
+    const elapsed = performance.now() - scanStartedAt
+    if (elapsed >= FAST_UI_DEADLINE_MS) {
+      stopClock()
+      emit({ phase: 'timeout', elapsed_ms: FAST_UI_DEADLINE_MS })
+      return
+    }
+    emit({ phase: 'searching', elapsed_ms: elapsed })
+  }, 80)
+}
+
+function stopClock() {
+  clearInterval(scanTimer)
+  scanTimer = null
+}
+
+function makeForm(file) {
+  const data = new FormData()
+  data.append('file', file)
+  return data
+}
+
+async function prepareFastImage(file) {
+  if (!('createImageBitmap' in window)) return file
+  let bitmap
+  try {
+    bitmap = await createImageBitmap(file)
+    const maxSide = Math.max(bitmap.width, bitmap.height)
+    const scale = Math.min(1, FAST_IMAGE_MAX_DIMENSION / Math.max(1, maxSide))
+    const width = Math.max(1, Math.round(bitmap.width * scale))
+    const height = Math.max(1, Math.round(bitmap.height * scale))
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    const context = canvas.getContext('2d', { alpha: false })
+    context.drawImage(bitmap, 0, 0, width, height)
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', FAST_IMAGE_QUALITY))
+    if (!blob) return file
+    return new File([blob], 'regiq-fast.jpg', { type: 'image/jpeg', lastModified: Date.now() })
+  } catch {
+    return file
+  } finally {
+    bitmap?.close?.()
+  }
+}
+
+async function fastRequest(file) {
+  const controller = new AbortController()
+  let timeoutId
+  const work = (async () => {
+    const prepared = await prepareFastImage(file)
+    const response = await nativeFetch('/api/scan/fast-identify', {
+      method: 'POST',
+      body: makeForm(prepared),
+      signal: controller.signal,
+    })
+    return response.ok ? response.json() : null
+  })().catch(() => null)
+
+  const timeout = new Promise(resolve => {
+    timeoutId = setTimeout(() => {
+      controller.abort()
+      resolve({ __fast_timeout: true })
+    }, FAST_UI_DEADLINE_MS)
+  })
+
+  try {
+    return await Promise.race([work, timeout])
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
+
+function normalizedFastIdentification(fast) {
+  const source = fast?.identification || {}
+  const confidence = Number(source.confidence || 0)
+  const pct = Math.max(0, Math.min(99, Math.round(confidence * 100)))
+  return {
+    status: 'identified',
+    product_type: source.product_type,
+    category: source.category || 'other',
+    brand: null,
+    model: null,
+    confidence,
+    product_family_confidence: pct,
+    visual_evidence_confidence: pct,
+    exact_product_confidence: 0,
+    confidence_method: 'fast_cloudflare_vision',
+    recognition_mode: source.recognition_mode || 'fast_vision',
+    provider: 'cloudflare-workers-ai',
+    supported_facts: [`Generic product family visually identified as ${source.product_type}.`],
+    critical_unknowns: [
+      'Exact brand and model are not established by the fast scan.',
+      'Hidden technical characteristics must be confirmed when they affect regulatory applicability.',
+    ],
+    alternative_families: [],
+    visible_text: [],
+    visual_evidence: {
+      objects: [source.product_type],
+      plain_observation: String(fast?.description || '').slice(0, 2200),
+      image_quality: 'usable',
+      recognition_mode: source.recognition_mode || 'fast_vision',
+    },
+  }
+}
+
+async function recoverIntelligence(fast, headers = {}) {
+  if (fast?.identification?.status !== 'identified') return null
+  const identification = normalizedFastIdentification(fast)
+  try {
+    const response = await nativeFetch('/api/scan/reassess', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...headers },
+      body: JSON.stringify({
+        identification,
+        gap_resolutions: [{
+          gap: 'Generic product family',
+          question: 'What generic product family is visible?',
+          value: identification.product_type,
+          evidence_level: 'machine_observed_fast_scan',
+        }],
+      }),
+    })
+    if (!response.ok) return null
+    return await response.json()
+  } catch {
+    return null
+  }
+}
+
+function composeRecoveredScan(original, recovered, fast) {
+  const identification = recovered?.identification || normalizedFastIdentification(fast)
+  const profile = recovered?.regulatory_profile || null
+  return {
+    ...(original || {}),
+    identification,
+    regulatory_profile: profile,
+    regulatory: profile ? {
+      status: profile.status,
+      label: profile.headline,
+      scope_note: profile.summary,
+      classification: 'MULTI_REGIME_PROFILE',
+      legal_basis: null,
+      source_url: null,
+    } : {
+      status: 'pending',
+      label: 'Product identified',
+      scope_note: 'Regulatory intelligence is still being prepared.',
+      classification: 'IDENTIFICATION_ONLY',
+      legal_basis: null,
+      source_url: null,
+    },
+    discovery: {
+      status: profile ? 'ready_for_source_discovery' : 'intelligence_pending',
+      message: profile ? 'Regulatory intelligence recovered from the fast product identity.' : 'Product identity is ready; intelligence is still pending.',
+    },
+    fast_scan: {
+      elapsed_ms: lastFound?.elapsed_ms ?? fast?.elapsed_ms ?? null,
+      server_elapsed_ms: fast?.elapsed_ms ?? null,
+      inference_ms: fast?.inference_ms ?? null,
+      mode: fast?.identification?.recognition_mode || 'fast_vision',
+    },
+  }
+}
+
+async function interceptScan(input, init = {}) {
+  const body = init?.body
+  const file = body instanceof FormData ? body.get('file') : null
+  if (!(file instanceof File)) return nativeFetch(input, init)
+
+  startClock()
+
+  const fastPromise = fastRequest(file)
+  const deepPromise = nativeFetch(input, init)
+  const fast = await fastPromise
+  const clientElapsed = performance.now() - scanStartedAt
+
+  if (fast?.identification?.status === 'identified') {
+    const elapsed = Math.min(clientElapsed, FAST_UI_DEADLINE_MS)
+    lastFound = { elapsed_ms: elapsed, identification: fast.identification }
+    stopClock()
+    emit({ phase: 'found', elapsed_ms: elapsed, identification: fast.identification, metrics: fast })
+  } else if (fast?.__fast_timeout || fast?.diagnostic_code === 'FAST_RECOGNITION_TIMEOUT') {
+    stopClock()
+    emit({ phase: 'timeout', elapsed_ms: Math.min(clientElapsed, FAST_UI_DEADLINE_MS) })
+  } else {
+    stopClock()
+    emit({ phase: 'no-match', elapsed_ms: clientElapsed })
+  }
+
+  let deepResponse
+  try {
+    deepResponse = await deepPromise
+  } catch (error) {
+    if (fast?.identification?.status !== 'identified') throw error
+    const recovered = await recoverIntelligence(fast)
+    return new Response(JSON.stringify(composeRecoveredScan({}, recovered, fast)), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })
+  }
+
+  let deepPayload = null
+  try { deepPayload = await deepResponse.clone().json() } catch {}
+
+  if (deepPayload?.identification?.status === 'identified') {
+    if (!lastFound) {
+      const elapsed = performance.now() - scanStartedAt
+      emit({ phase: 'deep-found', elapsed_ms: elapsed, identification: deepPayload.identification })
+    }
+    deepPayload.fast_scan = deepPayload.fast_scan || {
+      elapsed_ms: lastFound?.elapsed_ms ?? null,
+      mode: lastFound ? 'fast_then_deep' : 'deep_scan',
+    }
+    return new Response(JSON.stringify(deepPayload), {
+      status: deepResponse.status,
+      headers: { 'content-type': 'application/json' },
+    })
+  }
+
+  if (fast?.identification?.status === 'identified') {
+    emit({ phase: 'intelligence', elapsed_ms: lastFound?.elapsed_ms, identification: fast.identification })
+    const recovered = await recoverIntelligence(fast)
+    return new Response(JSON.stringify(composeRecoveredScan(deepPayload, recovered, fast)), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })
+  }
+
+  return deepResponse
+}
+
+window.fetch = function regiqFastFetch(input, init = {}) {
+  const url = typeof input === 'string' ? input : input?.url || ''
+  const method = String(init?.method || (typeof input !== 'string' ? input?.method : 'GET') || 'GET').toUpperCase()
+  if (method === 'POST' && /\/api\/scan\/image(?:\?|$)/.test(url)) {
+    return interceptScan(input, init)
+  }
+  return nativeFetch(input, init)
+}
+
+function ensureOverlay() {
+  const preview = document.querySelector('.os-preview')
+  if (!preview) return null
+  let overlay = preview.querySelector('.regiq-fast-overlay')
+  if (!overlay) {
+    overlay = document.createElement('div')
+    overlay.className = 'regiq-fast-overlay'
+    overlay.innerHTML = `
+      <div class="regiq-fast-radar"><span></span></div>
+      <div class="regiq-fast-copy">
+        <strong>Scanning product</strong>
+        <small>Searching visual identity</small>
+      </div>
+      <div class="regiq-fast-time">0.0 s</div>
+    `
+    preview.appendChild(overlay)
+  }
+  return overlay
+}
+
+function showFastResultCard(detail) {
+  const rail = document.querySelector('.os-scan-result')
+  if (!rail || !detail?.identification?.product_type) return
+  let card = document.getElementById('regiq-fast-result-card')
+  if (!card) {
+    card = document.createElement('article')
+    card.id = 'regiq-fast-result-card'
+    card.className = 'os-card regiq-fast-result-card'
+    rail.prepend(card)
+  }
+  const seconds = (Number(detail.elapsed_ms || 0) / 1000).toFixed(1)
+  const confidence = Math.round(Number(detail.identification.confidence || 0) * 100)
+  card.innerHTML = `
+    <div class="regiq-fast-result-copy">
+      <span class="os-overline">MATCH FOUND</span>
+      <h2>${escapeHtml(detail.identification.product_type)}</h2>
+      <p>Generic product family${confidence ? ` · ${confidence}% signal` : ''}</p>
+      <div class="regiq-fast-building"><span></span> Building regulatory intelligence…</div>
+    </div>
+    <div class="regiq-fast-found-time"><strong>${seconds}</strong><span>seconds</span></div>
+  `
+}
+
+function escapeHtml(value) {
+  return String(value || '').replace(/[&<>'"]/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[ch]))
+}
+
+function addFoundBadge(elapsedMs, label = 'Found') {
+  const card = document.querySelector('.os-product-card')
+  if (!card) return
+  document.getElementById('regiq-fast-result-card')?.remove()
+  let badge = card.querySelector('.regiq-found-badge')
+  if (!badge) {
+    badge = document.createElement('div')
+    badge.className = 'regiq-found-badge'
+    card.appendChild(badge)
+  }
+  badge.textContent = `${label} in ${(elapsedMs / 1000).toFixed(1)} s`
+}
+
+window.addEventListener('regiq-fastscan', event => {
+  const detail = event.detail || {}
+  const overlay = ensureOverlay()
+
+  if (detail.phase === 'searching') {
+    if (!overlay) return
+    overlay.classList.remove('found', 'failed')
+    overlay.style.display = 'flex'
+    overlay.querySelector('strong').textContent = 'Scanning product'
+    overlay.querySelector('small').textContent = detail.elapsed_ms > 1200 ? 'Searching visual identity…' : 'Looking for a match…'
+    overlay.querySelector('.regiq-fast-time').textContent = `${(Number(detail.elapsed_ms || 0) / 1000).toFixed(1)} s`
+  }
+
+  if (detail.phase === 'found') {
+    if (overlay) {
+      overlay.classList.add('found')
+      overlay.querySelector('strong').textContent = detail.identification?.product_type || 'Product found'
+      overlay.querySelector('small').textContent = 'Match found · building intelligence'
+      overlay.querySelector('.regiq-fast-time').textContent = `${(Number(detail.elapsed_ms || 0) / 1000).toFixed(1)} s`
+    }
+    showFastResultCard(detail)
+    setTimeout(() => addFoundBadge(Number(detail.elapsed_ms || 0)), 50)
+  }
+
+  if (detail.phase === 'timeout' || detail.phase === 'no-match') {
+    if (!overlay) return
+    overlay.classList.add('failed')
+    overlay.querySelector('strong').textContent = detail.phase === 'timeout' ? 'Quick scan timed out' : 'No instant match'
+    overlay.querySelector('small').textContent = 'Deeper analysis continues in the background'
+    overlay.querySelector('.regiq-fast-time').textContent = `${(Number(detail.elapsed_ms || 0) / 1000).toFixed(1)} s`
+  }
+
+  if (detail.phase === 'deep-found') {
+    if (overlay) {
+      overlay.classList.add('found')
+      overlay.querySelector('strong').textContent = detail.identification?.product_type || 'Product found'
+      overlay.querySelector('small').textContent = 'Resolved by deeper analysis'
+      overlay.querySelector('.regiq-fast-time').textContent = `${(Number(detail.elapsed_ms || 0) / 1000).toFixed(1)} s`
+    }
+    setTimeout(() => addFoundBadge(Number(detail.elapsed_ms || 0), 'Resolved'), 50)
+  }
+
+  if (detail.phase === 'intelligence' && overlay) {
+    overlay.querySelector('small').textContent = 'Product found · verifying regulatory intelligence…'
+  }
+})
+
+const observer = new MutationObserver(() => {
+  if (lastFound?.elapsed_ms != null) addFoundBadge(lastFound.elapsed_ms)
+})
+observer.observe(document.documentElement, { childList: true, subtree: true })

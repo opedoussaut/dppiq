@@ -1,0 +1,23 @@
+.regiq-fast-overlay {
+  top: 34px !important;
+}
+
+.regiq-activity-stack {
+  top: 118px !important;
+  gap: 14px !important;
+}
+
+.regiq-activity-watch {
+  margin: 0 !important;
+}
+
+@media (max-width: 640px) {
+  .regiq-fast-overlay {
+    top: 16px !important;
+  }
+
+  .regiq-activity-stack {
+    top: 88px !important;
+    gap: 10px !important;
+  }
+}

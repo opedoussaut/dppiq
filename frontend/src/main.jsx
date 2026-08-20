@@ -1,8 +1,14 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import './uploadCompat'
+import './multiObjectSelector'
+import './scanPipelineV3'
+import './scanActivityWatch'
 import App from './AppV2'
 import './regiq-os.css'
+import './fast-scan.css'
+import './scan-layout-v2.css'
+import './multi-object.css'
 import './mobile.css'
 
 // AppV2 uses a visually styled upload control inside the dark scan panel.
