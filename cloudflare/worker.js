@@ -1,7 +1,8 @@
 import catalog from '../data/regulatory_catalog.json'
 
-const VERSION = '1.3.0-cloudflare-beta'
-const VISION_MODEL = '@cf/meta/llama-4-scout-17b-16e-instruct'
+const VERSION = '1.4.0-cloudflare-beta'
+const PRIMARY_VISION_MODEL = '@cf/meta/llama-4-scout-17b-16e-instruct'
+const FALLBACK_VISION_MODEL = '@cf/google/gemma-4-26b-a4b-it'
 const TEXT_MODEL = '@cf/zai-org/glm-4.7-flash'
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8' }
 
@@ -93,34 +94,87 @@ function compactCatalog() {
   }))
 }
 
+const PRODUCT_HINTS = [
+  ['over-ear headphones', 'headphones', /\b(over[- ]?ear|circumaural)\b.*\b(headphone|headset)|\b(headphone|headset)s?\b/i],
+  ['earbuds', 'earbuds', /\b(earbud|in[- ]?ear earphone)s?\b/i],
+  ['folding multi-tool', 'multi_tool', /\b(multi[- ]?tool|multitool|folding tool|swiss army|pocket tool)\b/i],
+  ['eyeglasses', 'eyewear', /\b(eyeglass|spectacle|glasses frame|pair of glasses)\b/i],
+  ['smartphone', 'smartphone', /\b(smartphone|mobile phone|cell phone|handset)\b/i],
+  ['laptop computer', 'laptop', /\b(laptop|notebook computer|portable computer)\b/i],
+  ['computer server', 'server', /\b(server|rack server|blade server)\b/i],
+  ['desktop computer', 'desktop_computer', /\bdesktop computer\b|\bcomputer tower\b/i],
+  ['computer monitor', 'monitor', /\b(computer monitor|display monitor|lcd monitor|oled monitor)\b/i],
+  ['keyboard', 'keyboard', /\bkeyboard\b/i],
+  ['computer mouse', 'computer_mouse', /\bcomputer mouse\b|\bwireless mouse\b/i],
+  ['wireless router', 'router', /\b(router|wifi router|wi-fi router|wireless router)\b/i],
+  ['network switch', 'network_switch', /\bnetwork switch\b|\bethernet switch\b/i],
+  ['speaker', 'speaker', /\b(bluetooth speaker|loudspeaker|portable speaker|speaker)\b/i],
+  ['camera', 'camera', /\b(digital camera|mirrorless camera|dslr|camera body)\b/i],
+  ['television', 'television', /\b(television|smart tv|tv set)\b/i],
+  ['power bank', 'power_bank', /\b(power bank|portable charger|battery pack)\b/i],
+  ['battery', 'battery', /\b(battery|cell pack|accumulator)\b/i],
+  ['electric vehicle battery', 'battery_ev', /\b(ev battery|traction battery|electric vehicle battery)\b/i],
+  ['plastic beverage bottle', 'plastic_beverage_bottle', /\b(plastic|pet)\b.*\b(beverage|water|drink)\b.*\bbottle\b|\bplastic bottle\b/i],
+  ['beverage bottle', 'beverage_bottle', /\b(beverage|water|drink)\b.*\bbottle\b|\bbottle\b/i],
+  ['power drill', 'power_tool', /\b(power drill|cordless drill|electric drill)\b/i],
+  ['hand tool', 'hand_tool', /\b(screwdriver|pliers|wrench|spanner|hand tool)\b/i],
+  ['led lamp', 'led_lamp', /\b(led lamp|led bulb|light bulb|lamp)\b/i],
+  ['electronic toy', 'electronic_toy', /\b(electronic toy|toy robot|remote control toy)\b/i],
+  ['garment', 'textile_garment', /\b(shirt|t-shirt|jacket|trouser|pants|dress|garment|textile clothing)\b/i],
+  ['printed circuit board', 'pcb', /\b(printed circuit board|circuit board|pcb|electronic board)\b/i],
+  ['charger', 'charger', /\b(wall charger|usb charger|power adapter|ac adapter|charger)\b/i],
+  ['cable', 'cable', /\b(usb cable|power cable|charging cable|electrical cable|cable)\b/i],
+]
+
+function heuristicProduct(text) {
+  const source = String(text || '')
+  for (const [product_type, category, pattern] of PRODUCT_HINTS) {
+    if (pattern.test(source)) return { product_type, category, family_support: 'medium', alternative_families: [] }
+  }
+  return null
+}
+
+function evidenceText(evidence) {
+  return [
+    evidence?.product_type_hint,
+    evidence?.category_hint,
+    ...(evidence?.objects || []),
+    ...(evidence?.visible_text || []),
+    ...(evidence?.logos_or_brand_marks || []),
+    ...(evidence?.observable_features || []),
+    evidence?.plain_observation,
+  ].filter(Boolean).join(' ')
+}
+
 function deterministicVisualConfidence(evidence) {
   const objects = arr(evidence?.objects, 12).length
   const text = arr(evidence?.visible_text, 20).length
   const features = arr(evidence?.observable_features, 20).length
   const ambiguities = arr(evidence?.ambiguities, 10).length
   const quality = String(evidence?.image_quality || 'usable').toLowerCase()
-  let score = 48 + Math.min(objects, 3) * 7 + Math.min(features, 5) * 4 + Math.min(text, 4) * 3 - Math.min(ambiguities, 4) * 5
+  const hasHint = Boolean(evidence?.product_type_hint)
+  let score = 42 + Math.min(objects, 3) * 7 + Math.min(features, 5) * 4 + Math.min(text, 4) * 3 + (hasHint ? 10 : 0) - Math.min(ambiguities, 4) * 5
   if (quality === 'good' || quality === 'high') score += 8
   if (quality === 'poor' || quality === 'low') score -= 18
   return pct(score)
 }
 
 function deterministicFamilyConfidence(reasoned, evidenceConfidence) {
-  const support = String(reasoned?.family_support || 'medium').toLowerCase()
-  const base = support === 'strong' ? 88 : support === 'medium' ? 72 : 52
+  const support = String(reasoned?.family_support || 'weak').toLowerCase()
+  const base = support === 'strong' ? 90 : support === 'medium' ? 76 : 54
   const alternatives = arr(reasoned?.alternative_families, 6).length
-  return pct(base * 0.65 + evidenceConfidence * 0.35 - alternatives * 5)
+  return pct(base * 0.68 + evidenceConfidence * 0.32 - alternatives * 5)
 }
 
 function deterministicExactConfidence(reasoned, evidence) {
   const brand = String(reasoned?.brand || '').trim()
   const model = String(reasoned?.model || '').trim()
-  const visible = arr(evidence?.visible_text, 20).join(' ').toLowerCase()
-  if (!brand && !model) return 8
-  let score = 20
-  if (brand && visible.includes(brand.toLowerCase())) score += 25
-  if (model && visible.includes(model.toLowerCase())) score += 45
-  else if (model) score += 12
+  const visible = [...arr(evidence?.visible_text, 20), ...arr(evidence?.logos_or_brand_marks, 10)].join(' ').toLowerCase()
+  if (!brand && !model) return 5
+  let score = 15
+  if (brand && visible.includes(brand.toLowerCase())) score += 30
+  if (model && visible.includes(model.toLowerCase())) score += 50
+  else if (model) score += 8
   return pct(score)
 }
 
@@ -136,6 +190,69 @@ async function runJSON(env, prompt, maxTokens = 1800) {
   return extractJSON(result)
 }
 
+function normalizeEvidence(candidate, raw = '', model = PRIMARY_VISION_MODEL) {
+  const parsed = candidate && typeof candidate === 'object' ? candidate : {}
+  const rawText = String(raw || '')
+  const hinted = heuristicProduct(`${parsed.product_type_hint || ''} ${parsed.category_hint || ''} ${rawText}`)
+  const objects = arr(parsed.objects, 12)
+  if (!objects.length && hinted?.product_type) objects.push(hinted.product_type)
+  return {
+    objects,
+    visible_text: arr(parsed.visible_text, 20),
+    logos_or_brand_marks: arr(parsed.logos_or_brand_marks, 10),
+    observable_features: arr(parsed.observable_features, 20),
+    image_quality: String(parsed.image_quality || 'usable').toLowerCase(),
+    ambiguities: arr(parsed.ambiguities, 10),
+    plain_observation: String(parsed.plain_observation || rawText || '').replace(/```/g, '').slice(0, 2400),
+    product_type_hint: String(parsed.product_type_hint || hinted?.product_type || '').trim() || null,
+    category_hint: normalizeCategory(parsed.category_hint || hinted?.category || 'other'),
+    family_support_hint: String(parsed.family_support_hint || (hinted ? 'medium' : 'weak')).toLowerCase(),
+    brand_hint: parsed.brand_hint ? String(parsed.brand_hint).trim() : null,
+    model_hint: parsed.model_hint ? String(parsed.model_hint).trim() : null,
+    vision_model: model,
+  }
+}
+
+function usefulEvidence(evidence) {
+  if (!evidence) return false
+  if (evidence.product_type_hint) return true
+  if (arr(evidence.objects, 12).length) return true
+  if (arr(evidence.observable_features, 20).length >= 2) return true
+  return String(evidence.plain_observation || '').trim().length >= 20
+}
+
+async function callVision(env, model, image) {
+  const prompt = `You are REGIQ's product vision component. Identify the GENERIC product family and extract only visible evidence. Do not determine regulations.
+Return JSON if possible:
+{
+  "product_type_hint":"generic product name such as over-ear headphones, folding multi-tool, smartphone, battery, server, plastic bottle",
+  "category_hint":"short machine-readable family",
+  "family_support_hint":"strong|medium|weak",
+  "brand_hint":null,
+  "model_hint":null,
+  "objects":["generic objects visibly present"],
+  "visible_text":["only text actually readable"],
+  "logos_or_brand_marks":["only marks actually visible"],
+  "observable_features":["directly visible physical features"],
+  "image_quality":"good|usable|poor",
+  "ambiguities":["important facts not knowable from this image"],
+  "plain_observation":"2-4 factual sentences"
+}
+For an obvious object, name the generic family even if exact brand/model is unknown. Brand/model must be null unless directly visible. Never infer hidden battery chemistry, wireless capability, intended use, certification, capacity, material composition or legal status.`
+
+  const result = await env.AI.run(model, {
+    messages: [
+      { role: 'system', content: 'Recognize the generic product family first, then report visible evidence conservatively. Formatting errors must not prevent a useful generic identification.' },
+      { role: 'user', content: prompt },
+    ],
+    image,
+    temperature: 0,
+    max_tokens: 900,
+  })
+  const raw = aiText(result)
+  return normalizeEvidence(extractJSON(result), raw, model)
+}
+
 async function extractVisualEvidence(env, file) {
   const bytes = new Uint8Array(await file.arrayBuffer())
   let binary = ''
@@ -143,72 +260,107 @@ async function extractVisualEvidence(env, file) {
   for (let i = 0; i < bytes.length; i += chunk) binary += String.fromCharCode(...bytes.subarray(i, i + chunk))
   const image = `data:${file.type || 'image/jpeg'};base64,${btoa(binary)}`
 
-  const prompt = `You are REGIQ's visual evidence extractor. Do NOT decide regulations and do NOT guess an exact product identity unless visible evidence supports it.
-Inspect the primary physical product in the image and return ONLY JSON:
-{
-  "objects": ["generic objects visibly present"],
-  "visible_text": ["text or markings actually readable"],
-  "logos_or_brand_marks": ["only visible marks, never inferred brands"],
-  "observable_features": ["physical features directly visible: connectors, form factor, materials, controls, battery markings, wireless symbols, labels"],
-  "image_quality": "good|usable|poor",
-  "ambiguities": ["important things that cannot be determined from this image"],
-  "plain_observation": "2-4 factual sentences describing only what can be seen"
-}
-Be conservative. If text is unreadable, say so. Never infer hidden battery chemistry, wireless functionality, intended use, certification, capacity, materials composition or legal status.`
+  let primary = null
+  try { primary = await callVision(env, PRIMARY_VISION_MODEL, image) } catch (error) { console.warn('REGIQ primary vision failed', String(error?.message || error)) }
+  if (usefulEvidence(primary) && (primary.product_type_hint || heuristicProduct(evidenceText(primary)))) return primary
 
-  const result = await env.AI.run(VISION_MODEL, {
-    messages: [
-      { role: 'system', content: 'Extract visual evidence only. Accuracy and uncertainty are more important than naming a product.' },
-      { role: 'user', content: prompt },
-    ],
-    image,
-    temperature: 0,
-    max_tokens: 950,
-  })
-
-  let evidence = extractJSON(result)
-  if (!evidence) {
-    const observation = aiText(result)
-    evidence = await runJSON(env, `Normalize this vision observation into REGIQ visual evidence without adding facts:\n${observation.slice(0, 7000)}\nReturn JSON with objects, visible_text, logos_or_brand_marks, observable_features, image_quality, ambiguities, plain_observation.`, 900)
-  }
-  if (!evidence) throw new Error('Vision evidence could not be normalized.')
+  let fallback = null
+  try { fallback = await callVision(env, FALLBACK_VISION_MODEL, image) } catch (error) { console.warn('REGIQ fallback vision failed', String(error?.message || error)) }
+  if (usefulEvidence(fallback)) return fallback
+  if (usefulEvidence(primary)) return primary
 
   return {
-    objects: arr(evidence.objects, 12),
-    visible_text: arr(evidence.visible_text, 20),
-    logos_or_brand_marks: arr(evidence.logos_or_brand_marks, 10),
-    observable_features: arr(evidence.observable_features, 20),
-    image_quality: String(evidence.image_quality || 'usable').toLowerCase(),
-    ambiguities: arr(evidence.ambiguities, 10),
-    plain_observation: String(evidence.plain_observation || '').slice(0, 2000),
+    objects: [], visible_text: [], logos_or_brand_marks: [], observable_features: [], image_quality: 'poor',
+    ambiguities: ['The product family could not be established reliably from this image.'],
+    plain_observation: '', product_type_hint: null, category_hint: 'other', family_support_hint: 'weak',
+    brand_hint: null, model_hint: null, vision_model: fallback?.vision_model || primary?.vision_model || PRIMARY_VISION_MODEL,
   }
+}
+
+function directReasoning(evidence) {
+  const hint = evidence?.product_type_hint ? {
+    product_type: evidence.product_type_hint,
+    category: evidence.category_hint || 'other',
+    family_support: ['strong','medium','weak'].includes(evidence.family_support_hint) ? evidence.family_support_hint : 'medium',
+    alternative_families: [],
+  } : heuristicProduct(evidenceText(evidence))
+
+  if (hint) return {
+    ...hint,
+    brand: evidence.brand_hint || null,
+    model: evidence.model_hint || null,
+    supported_facts: [...new Set([...arr(evidence.objects, 8), ...arr(evidence.observable_features, 16), ...arr(evidence.visible_text, 12)])].slice(0, 20),
+    critical_unknowns: arr(evidence.ambiguities, 10),
+    reasoning_summary: String(evidence.plain_observation || `Visible evidence supports a generic identification as ${hint.product_type}.`).slice(0, 1200),
+  }
+
+  const firstObject = arr(evidence?.objects, 12).find(v => !/^(object|item|product|thing|device)$/i.test(v))
+  if (firstObject) return {
+    product_type: firstObject,
+    category: normalizeCategory(firstObject),
+    family_support: 'weak',
+    alternative_families: [],
+    brand: null,
+    model: null,
+    supported_facts: [...new Set([...arr(evidence.objects, 8), ...arr(evidence.observable_features, 16), ...arr(evidence.visible_text, 12)])].slice(0, 20),
+    critical_unknowns: [...arr(evidence.ambiguities, 10), 'Confirm the exact product family before relying on product-specific regulation.'].slice(0, 12),
+    reasoning_summary: String(evidence.plain_observation || `The image appears to contain ${firstObject}, but the family is not strongly established.`).slice(0, 1200),
+  }
+  return null
 }
 
 async function reasonProductFamily(env, evidence) {
-  const result = await runJSON(env, `You are REGIQ's product-family reasoner. Classify only from the supplied visual evidence. Do not infer hidden technical characteristics.
+  const direct = directReasoning(evidence)
+  if (direct?.family_support === 'strong') return direct
 
-VISUAL EVIDENCE:\n${JSON.stringify(evidence)}
-
-Return ONLY JSON:
-{
-  "product_type":"generic physical product name",
-  "category":"short machine-readable product family",
-  "family_support":"strong|medium|weak",
-  "alternative_families":["plausible alternative if ambiguity remains"],
-  "brand":null,
-  "model":null,
-  "supported_facts":["facts safe to use for regulatory screening"],
-  "critical_unknowns":["facts that materially affect regulation and cannot be seen"],
-  "reasoning_summary":"one conservative factual sentence"
-}
-Brand/model may only be populated when directly supported by visible text or a visible mark. Never use a famous-product resemblance as evidence.`, 1000)
-  if (!result?.product_type) throw new Error('Product family could not be reasoned from visual evidence.')
-  return result
+  try {
+    const enriched = await runJSON(env, `Classify the product family from the supplied visual evidence. Do not infer hidden characteristics and do not reject an obvious generic family merely because exact brand/model is unknown.\nVISUAL EVIDENCE:\n${JSON.stringify(evidence)}\nReturn JSON: {"product_type":"generic product family","category":"machine-readable family","family_support":"strong|medium|weak","alternative_families":[],"brand":null,"model":null,"supported_facts":[],"critical_unknowns":[],"reasoning_summary":"one conservative sentence"}. Brand/model only if directly visible.`, 950)
+    if (enriched?.product_type) {
+      const supported = arr(enriched.supported_facts, 20)
+      const unknowns = arr(enriched.critical_unknowns, 12)
+      return {
+        product_type: String(enriched.product_type).trim(),
+        category: normalizeCategory(enriched.category || direct?.category),
+        family_support: String(enriched.family_support || direct?.family_support || 'medium').toLowerCase(),
+        alternative_families: arr(enriched.alternative_families, 6),
+        brand: enriched.brand || direct?.brand || null,
+        model: enriched.model || direct?.model || null,
+        supported_facts: supported.length ? supported : (direct?.supported_facts || []),
+        critical_unknowns: unknowns.length ? unknowns : (direct?.critical_unknowns || []),
+        reasoning_summary: String(enriched.reasoning_summary || direct?.reasoning_summary || evidence.plain_observation || '').slice(0, 1200),
+      }
+    }
+  } catch (error) {
+    console.warn('REGIQ family enrichment failed', String(error?.message || error))
+  }
+  return direct
 }
 
 async function identifyProduct(env, file) {
   const evidence = await extractVisualEvidence(env, file)
   const reasoned = await reasonProductFamily(env, evidence)
+
+  if (!reasoned?.product_type) {
+    return {
+      status: 'unresolved',
+      message: 'I could not identify this product reliably from this image. Try another angle, move closer, or photograph a label or model marking.',
+      product_type: null,
+      category: 'other',
+      visible_text: evidence.visible_text,
+      visual_evidence: evidence,
+      supported_facts: [],
+      critical_unknowns: ['Product family is not established.'],
+      alternative_families: [],
+      visual_evidence_confidence: deterministicVisualConfidence(evidence),
+      product_family_confidence: 0,
+      exact_product_confidence: 0,
+      confidence: 0,
+      confidence_method: 'deterministic_from_observed_evidence_not_llm_self_rating',
+      provider: 'cloudflare-workers-ai',
+      model_used: evidence.vision_model,
+    }
+  }
+
   const visualEvidenceConfidence = deterministicVisualConfidence(evidence)
   const familyConfidence = deterministicFamilyConfidence(reasoned, visualEvidenceConfidence)
   const exactConfidence = deterministicExactConfidence(reasoned, evidence)
@@ -232,12 +384,14 @@ async function identifyProduct(env, file) {
     confidence_method: 'deterministic_from_observed_evidence_not_llm_self_rating',
     reasoning_summary: String(reasoned.reasoning_summary || evidence.plain_observation || '').slice(0, 1200),
     provider: 'cloudflare-workers-ai',
-    model_used: VISION_MODEL,
+    model_used: evidence.vision_model,
     credential_source: 'cloudflare_binding',
     model_provenance: {
       provider: 'cloudflare-workers-ai',
-      model: VISION_MODEL,
-      source_url: 'https://developers.cloudflare.com/ai/models/%40cf/meta/llama-4-scout-17b-16e-instruct/',
+      model: evidence.vision_model,
+      source_url: evidence.vision_model === FALLBACK_VISION_MODEL
+        ? 'https://developers.cloudflare.com/ai/models/%40cf/google/gemma-4-26b-a4b-it/'
+        : 'https://developers.cloudflare.com/ai/models/%40cf/meta/llama-4-scout-17b-16e-instruct/',
       license: 'model-specific; see source',
       revision: null,
     },
@@ -443,7 +597,19 @@ async function scanImage(request, env) {
     const file = form.get('file')
     if (!(file instanceof File)) return json({ detail: 'Image file is required.' }, 400)
     if (file.size > 10 * 1024 * 1024) return json({ detail: 'Image exceeds the 10 MB public demo limit.' }, 413)
+
     const identification = await identifyProduct(env, file)
+    if (identification.status !== 'identified') {
+      return json({
+        filename: file.name,
+        content_type: file.type || 'image/jpeg',
+        identification,
+        regulatory_profile: null,
+        regulatory: { status: 'not_assessed', label: 'Product family not established', scope_note: 'REGIQ will not investigate product-specific rules until the product family is identified reliably.', classification: 'NOT_ASSESSED', legal_basis: null, source_url: null },
+        discovery: { status: 'waiting_for_identification', message: 'Try another angle or photograph a product label. No regulatory conclusion has been generated.' },
+      })
+    }
+
     const regulatoryProfile = await investigate(env, identification) || deterministicFallback(identification)
     return json({
       filename: file.name,
@@ -456,7 +622,24 @@ async function scanImage(request, env) {
   } catch (error) {
     const message = String(error?.message || error || 'Unknown inference error')
     const capacity = /limit|quota|capacity|neuron|429|3040|5035/i.test(message)
-    return json({ detail: capacity ? 'REGIQ has reached the current free Workers AI capacity. Try again after the free allocation resets.' : `Cloudflare AI inference failed: ${message}`, free_tier_capacity: capacity ? 'exhausted' : 'unknown' }, capacity ? 429 : 500)
+    console.error('REGIQ scan pipeline error', message)
+    if (capacity) return json({ detail: 'REGIQ has reached the current free Workers AI capacity. Please try again later.', free_tier_capacity: 'exhausted' }, 429)
+    return json({
+      filename: null,
+      identification: {
+        status: 'unresolved',
+        message: 'REGIQ could not identify this product reliably from this image. Try another angle, move closer, or photograph the product label.',
+        product_type: null,
+        category: 'other',
+        visual_evidence_confidence: 0,
+        product_family_confidence: 0,
+        exact_product_confidence: 0,
+      },
+      regulatory_profile: null,
+      regulatory: { status: 'not_assessed', label: 'Recognition incomplete', scope_note: 'No product-specific regulatory conclusion was generated.', classification: 'NOT_ASSESSED', legal_basis: null, source_url: null },
+      discovery: { status: 'waiting_for_identification', message: 'No regulatory conclusion has been generated.' },
+      diagnostic_code: 'RECOGNITION_INCOMPLETE',
+    }, 200)
   }
 }
 
@@ -475,7 +658,7 @@ async function reassess(request, env) {
     profile.user_evidence = evidence
     return json({ identification, regulatory_profile: profile, reassessment: { status: 'completed', evidence_items: evidence.length, fallback_used: Boolean(profile.fallback_used) } })
   } catch (error) {
-    return json({ detail: `Reassessment failed: ${String(error?.message || error)}` }, 500)
+    return json({ detail: 'REGIQ could not complete this reassessment. Please review the supplied evidence and try again.' }, 500)
   }
 }
 
@@ -484,12 +667,12 @@ async function api(request, env) {
   if (request.method === 'GET' && path === '/api/health') return json({ status: 'ok', name: 'REGIQ', version: VERSION, runtime: 'cloudflare-workers', regulatory_catalog_version: catalog.catalog_version, regulatory_catalog_verified_at: catalog.verified_at })
   if (request.method === 'GET' && path === '/api/model/provenance') return json({
     software: { name: 'REGIQ', version: VERSION, license: 'Apache-2.0', repository: 'https://github.com/opedoussaut/regiq' },
-    vision: { enabled: true, provider: 'cloudflare-workers-ai', model: VISION_MODEL, open_weight: true, server_token_configured: true, byo_hf_token_enabled: false, strategy: 'evidence_first_then_family_reasoning' },
+    vision: { enabled: true, provider: 'cloudflare-workers-ai', model: PRIMARY_VISION_MODEL, fallback_model: FALLBACK_VISION_MODEL, open_weight: true, server_token_configured: true, byo_hf_token_enabled: false, strategy: 'dual-vision generic-family recognition with nonfatal heuristic recovery' },
     regulation_agents: { enabled: true, provider: 'cloudflare-workers-ai', investigator_model: TEXT_MODEL, verifier_model: TEXT_MODEL, server_token_configured: true, byo_token_enabled: false, confidence_method: 'deterministic evidence-weighted score', resilience: 'verified_catalog_fallback' },
     hosting: { provider: 'cloudflare-workers', mode: 'free-tier-public-demo', billing_guardrail: 'no automatic paid inference configured by REGIQ' },
   })
   if (request.method === 'GET' && path === '/api/scan/config') return json({
-    vision: { enabled: true, provider: 'cloudflare-workers-ai', model: VISION_MODEL, server_token_configured: true, byo_hf_token_enabled: false, strategy: 'visual evidence -> family reasoning -> deterministic confidence' },
+    vision: { enabled: true, provider: 'cloudflare-workers-ai', model: PRIMARY_VISION_MODEL, fallback_model: FALLBACK_VISION_MODEL, server_token_configured: true, byo_hf_token_enabled: false, strategy: 'primary vision -> direct family recovery -> fallback vision -> optional reasoner' },
     regulation_agents: { enabled: true, provider: 'cloudflare-workers-ai', investigator_model: TEXT_MODEL, verifier_model: TEXT_MODEL, server_token_configured: true, byo_token_enabled: false },
     camera_capture: true,
     photo_upload: true,
@@ -498,7 +681,7 @@ async function api(request, env) {
     reference_product_families: Object.keys(catalog.product_families || {}).sort(),
     regulatory_catalog_version: catalog.catalog_version,
     public_runtime: 'Cloudflare Workers + Workers AI free daily allocation',
-    principle: 'Observe first. Classify second. Investigate only supported facts. Ask for evidence when hidden characteristics matter.',
+    principle: 'Recognize the generic family first. Never let a formatting failure become a false product claim or a fatal scan error.',
   })
   if (request.method === 'GET' && path === '/api/regulation/catalog') return json(catalog)
   if (request.method === 'POST' && path === '/api/scan/image') return scanImage(request, env)
