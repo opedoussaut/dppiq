@@ -97,8 +97,8 @@ test.describe('REGIQ release smoke', () => {
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        filename: 'ambiguous.jpg',
-        content_type: 'image/jpeg',
+        filename: 'ambiguous.png',
+        content_type: 'image/png',
         identification: {
           status: 'unresolved',
           message: 'I could not identify this product reliably from this image. Try another angle, move closer, or photograph a label or model marking.',
@@ -114,8 +114,9 @@ test.describe('REGIQ release smoke', () => {
       }),
     }))
 
+    const onePixelPng = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64')
     const fileInput = page.locator('input[type="file"]').first()
-    await fileInput.setInputFiles({ name: 'ambiguous.jpg', mimeType: 'image/jpeg', buffer: Buffer.from('not-a-real-image-but-api-is-mocked') })
+    await fileInput.setInputFiles({ name: 'ambiguous.png', mimeType: 'image/png', buffer: onePixelPng })
     await expect(page.getByRole('heading', { name: /product not identified/i })).toBeVisible()
     await expect(page.getByText(/try another angle/i)).toBeVisible()
     await expect(page.locator('.error')).toHaveCount(0)
