@@ -4,7 +4,7 @@
   "version": "1.2.0-cloudflare-beta",
   "type": "module",
   "scripts": {
-    "install:frontend": "npm --prefix frontend install",
+    "postinstall": "npm --prefix frontend install",
     "build": "npm --prefix frontend run build",
     "test:ui": "npm --prefix frontend run test:e2e",
     "test:mobile": "npm --prefix frontend run test:e2e:mobile",
