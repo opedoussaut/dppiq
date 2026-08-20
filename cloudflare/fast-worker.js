@@ -1,6 +1,7 @@
 import baseWorker from './worker-recognition.js'
+import { handleStagedIntelligence } from './staged-intelligence.js'
 
-const FAST_VERSION = '0.4.0-moondream-cascade-dev'
+const FAST_VERSION = '0.5.0-staged-intelligence-dev'
 const FAST_VISION_MODEL = '@cf/moondream/moondream3.1-9B-A2B'
 const TOTAL_MODEL_BUDGET_MS = 2800
 const CAPTION_BUDGET_MS = 1500
@@ -203,6 +204,10 @@ export default {
         }, { status: 200 })
       }
     }
+
+    const staged = await handleStagedIntelligence(request, env)
+    if (staged) return staged
+
     return baseWorker.fetch(request, env, ctx)
   },
 }
