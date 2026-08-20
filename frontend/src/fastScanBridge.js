@@ -8,8 +8,15 @@ function emit(detail) {
   window.dispatchEvent(new CustomEvent('regiq-fastscan', { detail }))
 }
 
+function clearFastArtifacts() {
+  document.getElementById('regiq-fast-result-card')?.remove()
+  document.querySelectorAll('.regiq-found-badge').forEach(node => node.remove())
+}
+
 function startClock() {
   scanStartedAt = performance.now()
+  lastFound = null
+  clearFastArtifacts()
   clearInterval(scanTimer)
   emit({ phase: 'searching', elapsed_ms: 0 })
   scanTimer = setInterval(() => {
@@ -216,9 +223,37 @@ function ensureOverlay() {
   return overlay
 }
 
+function showFastResultCard(detail) {
+  const rail = document.querySelector('.os-scan-result')
+  if (!rail || !detail?.identification?.product_type) return
+  let card = document.getElementById('regiq-fast-result-card')
+  if (!card) {
+    card = document.createElement('article')
+    card.id = 'regiq-fast-result-card'
+    card.className = 'os-card regiq-fast-result-card'
+    rail.prepend(card)
+  }
+  const seconds = (Number(detail.elapsed_ms || 0) / 1000).toFixed(1)
+  const confidence = Math.round(Number(detail.identification.confidence || 0) * 100)
+  card.innerHTML = `
+    <div class="regiq-fast-result-copy">
+      <span class="os-overline">MATCH FOUND</span>
+      <h2>${escapeHtml(detail.identification.product_type)}</h2>
+      <p>Generic product family${confidence ? ` · ${confidence}% signal` : ''}</p>
+      <div class="regiq-fast-building"><span></span> Building regulatory intelligence…</div>
+    </div>
+    <div class="regiq-fast-found-time"><strong>${seconds}</strong><span>seconds</span></div>
+  `
+}
+
+function escapeHtml(value) {
+  return String(value || '').replace(/[&<>'"]/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[ch]))
+}
+
 function addFoundBadge(elapsedMs) {
   const card = document.querySelector('.os-product-card')
   if (!card) return
+  document.getElementById('regiq-fast-result-card')?.remove()
   let badge = card.querySelector('.regiq-found-badge')
   if (!badge) {
     badge = document.createElement('div')
@@ -246,6 +281,7 @@ window.addEventListener('regiq-fastscan', event => {
       overlay.querySelector('small').textContent = 'Match found · building intelligence'
       overlay.querySelector('.regiq-fast-time').textContent = `${(Number(detail.elapsed_ms || 0) / 1000).toFixed(1)} s`
     }
+    showFastResultCard(detail)
     setTimeout(() => addFoundBadge(Number(detail.elapsed_ms || 0)), 50)
   }
   if (detail.phase === 'intelligence' && overlay) {
