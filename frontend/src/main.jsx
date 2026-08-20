@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import './uploadCompat'
+import './stageNetworkGuard'
 import './stagedScanBridgeV2'
 import './scanActivityWatch'
 import App from './AppV2'
