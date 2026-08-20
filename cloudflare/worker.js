@@ -282,15 +282,15 @@ async function api(request, env) {
   if (request.method === 'GET' && path === '/api/model/provenance') {
     return json({
       software: { name: 'REGIQ', version: VERSION, license: 'Apache-2.0', repository: 'https://github.com/opedoussaut/regiq' },
-      vision: { enabled: true, provider: 'cloudflare-workers-ai', model: VISION_MODEL, open_weight: true, server_token_configured: false, byo_hf_token_enabled: false },
-      regulation_agents: { enabled: true, provider: 'cloudflare-workers-ai', investigator_model: TEXT_MODEL, verifier_model: TEXT_MODEL, confidence_method: 'deterministic evidence-weighted score' },
+      vision: { enabled: true, provider: 'cloudflare-workers-ai', model: VISION_MODEL, open_weight: true, server_token_configured: true, byo_hf_token_enabled: false },
+      regulation_agents: { enabled: true, provider: 'cloudflare-workers-ai', investigator_model: TEXT_MODEL, verifier_model: TEXT_MODEL, server_token_configured: true, byo_token_enabled: false, confidence_method: 'deterministic evidence-weighted score' },
       hosting: { provider: 'cloudflare-workers', mode: 'free-tier-public-demo', billing_guardrail: 'no automatic paid inference configured by REGIQ' },
     })
   }
   if (request.method === 'GET' && path === '/api/scan/config') {
     return json({
-      vision: { enabled: true, provider: 'cloudflare-workers-ai', model: VISION_MODEL },
-      regulation_agents: { enabled: true, provider: 'cloudflare-workers-ai', investigator_model: TEXT_MODEL, verifier_model: TEXT_MODEL },
+      vision: { enabled: true, provider: 'cloudflare-workers-ai', model: VISION_MODEL, server_token_configured: true, byo_hf_token_enabled: false },
+      regulation_agents: { enabled: true, provider: 'cloudflare-workers-ai', investigator_model: TEXT_MODEL, verifier_model: TEXT_MODEL, server_token_configured: true, byo_token_enabled: false },
       camera_capture: true,
       photo_upload: true,
       barcode_qr: true,
