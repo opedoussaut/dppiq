@@ -1,4 +1,4 @@
-import baseWorker from './worker.js'
+import baseWorker from './worker-recognition.js'
 
 const FAST_VERSION = '0.1.0-fast-scan-dev'
 
