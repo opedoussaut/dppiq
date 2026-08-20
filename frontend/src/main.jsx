@@ -6,6 +6,7 @@ import './scanActivityWatch'
 import App from './AppV2'
 import './regiq-os.css'
 import './fast-scan.css'
+import './scan-layout-v2.css'
 import './mobile.css'
 
 // AppV2 uses a visually styled upload control inside the dark scan panel.
