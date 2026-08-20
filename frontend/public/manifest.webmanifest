@@ -8,12 +8,12 @@
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
   "orientation": "any",
-  "background_color": "#071312",
-  "theme_color": "#071312",
+  "background_color": "#f5f5f7",
+  "theme_color": "#f5f5f7",
   "categories": ["business", "productivity", "utilities"],
   "icons": [
     {
-      "src": "/regiq-icon.svg",
+      "src": "/regiq-icon.svg?v=2",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
@@ -24,7 +24,7 @@
       "name": "Scan a product",
       "short_name": "Scan",
       "url": "/?view=scan",
-      "icons": [{"src": "/regiq-icon.svg", "sizes": "any", "type": "image/svg+xml"}]
+      "icons": [{"src": "/regiq-icon.svg?v=2", "sizes": "any", "type": "image/svg+xml"}]
     }
   ]
 }

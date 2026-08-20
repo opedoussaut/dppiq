@@ -1,41 +1,72 @@
-# DPPIQ regulatory basis
+# REGIQ regulatory basis
 
-DPPIQ separates authoritative law from machine interpretation and from DPPIQ-added intelligence.
+REGIQ separates authoritative legal sources from model interpretation and from REGIQ-added intelligence.
 
-## Authoritative reference
+## Authoritative-source policy
 
-The current reference model is grounded in **Regulation (EU) 2024/1781 (ESPR)**, using the official EUR-Lex legal text:
+The active public corpus is `data/regulatory_catalog.json`. Entries are curated from official EUR-Lex legal acts and include a stable ID, legal basis, source URL, source authority/status and a concise scope summary.
 
-- https://eur-lex.europa.eu/eli/reg/2024/1781/oj
-- Digital Product Passport framework: Articles 9, 10 and 11
-- Official European Commission DPP implementation page: https://single-market-economy.ec.europa.eu/single-market/digital-product-passport_en
+The current catalog includes horizontal and sector-specific EU legislation such as:
 
-The machine-readable reference used by the prototype is stored in `data/regulatory_reference.json`.
+- Ecodesign for Sustainable Products Regulation (EU) 2024/1781 (ESPR);
+- Packaging and Packaging Waste Regulation (EU) 2025/40;
+- Batteries Regulation (EU) 2023/1542;
+- RoHS and WEEE;
+- Radio Equipment Directive and Common Charger rules;
+- smartphone/slate-tablet ecodesign requirements;
+- REACH and General Product Safety Regulation;
+- machinery and toy-safety transition legislation;
+- selected lighting, textile and food-contact rules.
 
-## Classification model
+The catalog is not a claim of complete EU product-law coverage.
 
-DPPIQ uses three visible classifications.
+## Digital Product Passport status
 
-### `EU_FRAMEWORK`
+ESPR remains a key horizontal reference for DPP architecture, but REGIQ does **not** assume that every product has a current ESPR DPP obligation. Product-specific ESPR requirements depend on delegated acts and application dates.
 
-An enacted horizontal requirement or design principle from the ESPR DPP framework. A framework-readiness check indicates whether the demo passport contains supporting data or system metadata. It is **not** a legal compliance opinion.
+REGIQ therefore treats DPP/passport relevance as one finding among many. The Batteries Regulation and Toy Safety Regulation can also introduce passport concepts for specified scopes/dates.
 
-### `PRODUCT_SPECIFIC`
+The older `data/regulatory_reference.json` remains available as a focused ESPR/DPP reference snapshot, but it is not the sole public reasoning source.
 
-A requirement whose concrete content or applicability depends on an applicable delegated act under ESPR or other sector-specific EU legislation. DPPIQ must not assert that these requirements apply to a product unless the corresponding legal instrument has been identified.
+## Interpretation model
 
-### `DPPIQ_INTELLIGENCE`
+REGIQ's public inference chain is:
 
-A score, prediction, recommendation, evidence-quality assessment, circularity analysis or agent-evolution result created by DPPIQ. These are never represented as EU legal requirements.
+```text
+verified corpus
+     |
+product evidence -> investigator -> verifier
+                                 |
+                                 v
+                     deterministic confidence
+```
 
-## Current demo-product limitation
+The investigator can reference only act IDs supplied in the catalog. Missing product specifications should produce conditional findings or evidence questions rather than invented certainty.
 
-The sample product is illustrative. DPPIQ currently uses the horizontal ESPR DPP framework to demonstrate readiness and provenance. It does not claim that a product-specific DPP obligation is currently applicable to the demo sensor.
+The verifier receives the same source corpus and can reject unsupported findings.
 
-## Evolution guardrail
+## Confidence is not compliance
 
-Self-improving agents may improve retrieval, extraction, mapping, evidence assessment and reasoning workflows. They may not alter the authoritative source, remove provenance, or silently promote an interpretation to the status of law. Proposed agent generations must pass objective benchmark guardrails before promotion.
+REGIQ evidence confidence is computed from:
 
-## Keeping the reference current
+- visual/product identity confidence;
+- official-source authority;
+- verifier agreement;
+- applicability specificity;
+- missing evidence.
 
-Future work will add an automated regulatory-watch pipeline that checks official EU sources for new delegated acts, implementing acts, harmonised-standard references and product-specific DPP requirements. Detected changes will enter a review/evaluation flow before they can update DPPIQ's active regulatory model.
+It is confidence in the quality of the investigation, not a compliance score, conformity assessment, CE-marking determination or legal opinion.
+
+## Source taxonomy
+
+REGIQ distinguishes:
+
+- `official_eur_lex` — authoritative official legal source metadata;
+- official proposal/draft — future category, must remain visibly non-final;
+- secondary material — explanatory context only when explicitly added;
+- benchmark/demo data — synthetic or curated test inputs;
+- model interpretation — investigator/verifier output, never law.
+
+## Regulatory evolution guardrail
+
+Future regulatory-watch agents may discover candidate new acts or changes, but they must not silently promote them into the verified corpus. A source update should remain reviewable and version-controlled, with official provenance and regression testing before release.
