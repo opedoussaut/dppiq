@@ -1,7 +1,7 @@
 {
   "name": "regiq",
   "private": true,
-  "version": "1.2.0-cloudflare-beta",
+  "version": "1.4.0-cloudflare-beta",
   "type": "module",
   "scripts": {
     "postinstall": "npm --prefix frontend install",
