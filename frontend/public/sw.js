@@ -1,4 +1,4 @@
-const CACHE = 'regiq-shell-v7'
+const CACHE = 'regiq-shell-v8'
 const SHELL = ['/', '/manifest.webmanifest', '/regiq-icon.svg']
 
 self.addEventListener('install', event => {
