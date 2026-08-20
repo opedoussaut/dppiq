@@ -1,6 +1,6 @@
 import baseWorker from './worker-recognition.js'
 
-const FAST_VERSION = '0.2.0-moوندream-fast-scan-dev'
+const FAST_VERSION = '0.2.0-moondream-fast-scan-dev'
 const FAST_VISION_MODEL = '@cf/moondream/moondream3.1-9B-A2B'
 
 const PRODUCT_HINTS = [
