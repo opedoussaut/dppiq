@@ -10,17 +10,39 @@ async function assertGrayCanvas(page) {
   expect(bg).not.toBe('rgb(255, 255, 255)')
 }
 
+const publicConfig = {
+  vision: {
+    enabled: true,
+    provider: 'cloudflare-workers-ai',
+    model: '@cf/google/gemma-4-26b-a4b-it',
+    server_token_configured: true,
+    byo_hf_token_enabled: false,
+  },
+  regulation_agents: {
+    enabled: true,
+    provider: 'cloudflare-workers-ai',
+    investigator_model: '@cf/zai-org/glm-4.7-flash',
+    verifier_model: '@cf/zai-org/glm-4.7-flash',
+    server_token_configured: true,
+    byo_token_enabled: false,
+  },
+}
+
 test.describe('REGIQ release smoke', () => {
   test.beforeEach(async ({ page }) => {
     await page.route('**/api/scan/config', route => route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ vision: { enabled: true, provider: 'huggingface', model: 'auto' } }),
+      body: JSON.stringify(publicConfig),
     }))
     await page.route('**/api/model/provenance', route => route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({}),
+      body: JSON.stringify({
+        hosting: { provider: 'cloudflare-workers', mode: 'free-tier-public-demo' },
+        vision: publicConfig.vision,
+        regulation_agents: publicConfig.regulation_agents,
+      }),
     }))
     await page.goto('/')
   })
@@ -57,6 +79,15 @@ test.describe('REGIQ release smoke', () => {
     expect(box.x).toBeGreaterThanOrEqual(0)
     expect(box.x + box.width).toBeLessThanOrEqual(viewport.width + 1)
     expect(box.height).toBeGreaterThan(300)
+    await assertNoHorizontalOverflow(page)
+  })
+
+  test('public setup is ready without asking visitors for a token', async ({ page }) => {
+    const menu = page.locator('.os-mobile-menu')
+    if (await menu.isVisible()) await menu.click()
+    await page.getByRole('button', { name: /setup/i }).click()
+    await expect(page.getByRole('heading', { name: /host credentials are ready/i })).toBeVisible()
+    await expect(page.locator('input[placeholder="hf_…"]')).toHaveCount(0)
     await assertNoHorizontalOverflow(page)
   })
 })
